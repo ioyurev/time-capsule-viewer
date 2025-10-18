@@ -1,8 +1,8 @@
 import { logger } from '../logger.js';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Настройка PDF.js worker - используем версию, соответствующую установленной библиотеке pdfjs-dist: "^3.1.174"
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// Настройка PDF.js worker - используем локальную версию из node_modules с правильным URL для Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.js', import.meta.url).href;
 
 /**
  * Класс для отображения архива и элементов архива

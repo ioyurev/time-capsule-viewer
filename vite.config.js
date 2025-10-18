@@ -7,7 +7,7 @@ export default defineConfig({
   
   // Оптимизация зависимостей
   optimizeDeps: {
-    include: ['pdfjs-dist', 'jszip', 'paparse'],
+    include: ['pdfjs-dist', 'jszip', 'papaparse'],
     esbuildOptions: {
       define: {
         global: 'globalThis',
@@ -44,9 +44,9 @@ export default defineConfig({
     })
   ],
   
-  // Обработка worker файлов
+  // Обработка worker файлов - корректная настройка для PDF.js
   worker: {
-    format: 'es',
+    format: 'ife',
     plugins: () => []
   }
 });
