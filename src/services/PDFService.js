@@ -3,6 +3,9 @@
  */
 import * as pdfjsLib from 'pdfjs-dist';
 
+// Настройка PDF.js worker - используем версию, соответствующую установленной библиотеке pdfjs-dist: "^3.1.174"
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 export class PDFService {
     /**
      * Извлекает метаданные из PDF файла

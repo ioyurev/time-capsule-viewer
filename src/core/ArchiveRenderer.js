@@ -1,8 +1,8 @@
 import { logger } from '../logger.js';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Настройка PDF.js worker для Vite
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.174/pdf.worker.min.js`;
+// Настройка PDF.js worker - используем версию, соответствующую установленной библиотеке pdfjs-dist: "^3.1.174"
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /**
  * Класс для отображения архива и элементов архива
@@ -208,7 +208,7 @@ export class ArchiveRenderer {
                     const arrayBuffer = await pdfFile.async('arraybuffer');
                     const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
                     url = URL.createObjectURL(blob);
-                    this.parent.pdfUrls.push(url); // Сохраняем для очистки
+                    this.parent.urlManager.addUrl(url, 'pdf'); // Сохраняем для очистки
 
                     contentHtml = `
                         <iframe class="pdf-viewer" src="${url}"></iframe>
@@ -225,7 +225,7 @@ export class ArchiveRenderer {
                     const uint8Array = await imageFile.async('uint8array');
                     const blob = new Blob([uint8Array], { type: `image/${fileExtension}` });
                     url = URL.createObjectURL(blob);
-                    this.parent.imageUrls.push(url); // Сохраняем для очистки
+                    this.parent.urlManager.addUrl(url, 'image'); // Сохраняем для очистки
 
                     contentHtml = `<img src="${url}" alt="${this.parent.escapeHtml(displayTitle)}" loading="lazy">`;
                 }
@@ -235,7 +235,7 @@ export class ArchiveRenderer {
                     const uint8Array = await videoFile.async('uint8array');
                     const blob = new Blob([uint8Array], { type: 'video/mp4' }); // Для упрощения используем mp4
                     url = URL.createObjectURL(blob);
-                    this.parent.videoUrls.push(url); // Сохраняем для очистки
+                    this.parent.urlManager.addUrl(url, 'video'); // Сохраняем для очистки
 
                     contentHtml = `
                         <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
@@ -250,7 +250,7 @@ export class ArchiveRenderer {
                     const uint8Array = await audioFile.async('uint8array');
                     const blob = new Blob([uint8Array], { type: 'audio/mpeg' }); // Для упрощения используем mp3
                     url = URL.createObjectURL(blob);
-                    this.parent.audioUrls.push(url); // Сохраняем для очистки
+                    this.parent.urlManager.addUrl(url, 'audio'); // Сохраняем для очистки
 
                     contentHtml = `
                         <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
@@ -285,7 +285,7 @@ export class ArchiveRenderer {
                     } else {
                         const blob = await csvFile.async('blob');
                         const csvUrl = URL.createObjectURL(blob);
-                        this.parent.csvUrls.push(csvUrl);
+                        this.parent.urlManager.addUrl(csvUrl, 'csv');
                         contentHtml = `
                             <a href="${csvUrl}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                                 📥 Скачать CSV файл (${this.parent.escapeHtml(item.filename)})
@@ -306,7 +306,7 @@ export class ArchiveRenderer {
                     const uint8Array = await defaultFile.async('uint8array');
                     const blob = new Blob([uint8Array]);
                     url = URL.createObjectURL(blob);
-                    this.parent.defaultUrls.push(url); // Сохраняем для очистки
+                    this.parent.urlManager.addUrl(url, 'default'); // Сохраняем для очистки
 
                     contentHtml = `
                         <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
@@ -650,7 +650,7 @@ export class ArchiveRenderer {
                 const imageBlob = await file.async('blob');
                 const imageUrl = URL.createObjectURL(imageBlob);
                 previewDiv.innerHTML = `<img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy">`;
-                this.parent.imageUrls.push(imageUrl);
+                this.parent.urlManager.addUrl(imageUrl, 'image');
                 this.logger.debug('Изображение обработано через blob', { filename: item.filename, operationId });
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });
@@ -686,7 +686,7 @@ export class ArchiveRenderer {
                 </video>
             `;
             
-            this.parent.videoUrls.push(videoUrl);
+            this.parent.urlManager.addUrl(videoUrl, 'video');
             this.logger.debug('Видео обработано успешно', { filename: item.filename, operationId });
         } catch (e) {
             this.logger.debug('Ошибка при обработке видео', { error: e.message, operationId });
@@ -722,7 +722,7 @@ export class ArchiveRenderer {
                 </video>
             `;
             
-            this.parent.audioUrls.push(audioUrl);
+            this.parent.urlManager.addUrl(audioUrl, 'audio');
             this.logger.debug('Аудио обработано успешно', { filename: item.filename, operationId });
         } catch (e) {
             this.logger.logError(e, { operationId });
@@ -962,7 +962,7 @@ export class ArchiveRenderer {
                     </div>
                 `;
                 
-                this.parent.pdfUrls.push(pdfUrl);
+                this.parent.urlManager.addUrl(pdfUrl, 'pdf');
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });
                 // Финальный резервный метод - только ссылка для скачивания
@@ -1022,7 +1022,7 @@ export class ArchiveRenderer {
                         📥 Скачать CSV файл (${this.parent.escapeHtml(item.filename)})
                     </a>
                 `;
-                this.parent.csvUrls.push(url);
+                this.parent.urlManager.addUrl(url, 'csv');
                 this.logger.debug('CSV файл обработан как ссылка для скачивания', { filename: item.filename, operationId });
             }
         } catch (e) {
@@ -1035,7 +1035,7 @@ export class ArchiveRenderer {
                         📥 Скачать CSV файл (${this.parent.escapeHtml(item.filename)})
                     </a>
                 `;
-                this.parent.csvUrls.push(url);
+                this.parent.urlManager.addUrl(url, 'csv');
                 this.logger.debug('CSV файл обработан через blob', { filename: item.filename, operationId });
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });
@@ -1062,7 +1062,7 @@ export class ArchiveRenderer {
                         📥 Скачать текстовый файл (${this.parent.escapeHtml(item.filename)})
                     </a>
                 `;
-                this.parent.textUrls.push(url);
+                this.parent.urlManager.addUrl(url, 'text');
                 this.logger.debug('Текстовый файл обработан через blob', { filename: item.filename, operationId });
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });
@@ -1094,7 +1094,7 @@ export class ArchiveRenderer {
                         📥 Скачать файл (${this.parent.escapeHtml(item.filename)})
                     </a>
                 `;
-                this.parent.defaultUrls.push(url);
+                this.parent.urlManager.addUrl(url, 'default');
                 this.logger.debug('Файл по умолчанию обработан через blob', { filename: item.filename, operationId });
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });

@@ -285,11 +285,13 @@ export class DigitalTimeCapsule {
             this.updateGlobalStatus(`Архив загружен успешно: ${items.length} файлов`, 'success');
             this.logger.info('ZIP файл успешно обработан', { itemsCount: items.length, operationId });
 
-            // Показываем секции архива и валидации
+            // Показываем секции архива, валидации и боковой панели
             const archiveSection = document.getElementById('archive-section');
             const validationSection = document.getElementById('validation-section');
+            const sidebar = document.getElementById('archive-sidebar');
             if (archiveSection) archiveSection.hidden = false;
             if (validationSection) validationSection.hidden = false;
+            if (sidebar) sidebar.hidden = false;
 
         } catch (error) {
             this.logger.logError(error, { operationId });
