@@ -1,6 +1,6 @@
 /**
- * @typedef {import('../core/DigitalTimeCapsule.js').ArchiveItem} ArchiveItem
- * @typedef {import('../core/DigitalTimeCapsule.js').ValidationError} ValidationError
+ * @typedef {import('../models/ArchiveItem.js').ArchiveItem} ArchiveItem
+ * @typedef {import('../models/ValidationError.js').ValidationError} ValidationError
  */
 
 /**

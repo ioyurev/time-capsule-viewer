@@ -1,6 +1,8 @@
 /**
  * Класс для работы с PDF файлами
  */
+import * as pdfjsLib from 'pdfjs-dist';
+
 export class PDFService {
     /**
      * Извлекает метаданные из PDF файла

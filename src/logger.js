@@ -1,5 +1,5 @@
 // Структурированная система логирования для цифровой капсулы времени
-class Logger {
+export class Logger {
     constructor() {
         this.logLevel = this.getLogLevelFromStorage();
         this.enabled = true;
@@ -90,49 +90,86 @@ class Logger {
 
     // Методы для разных уровней логирования
     error(message, context = {}) {
-        this.log(Logger.LOG_LEVELS.ERROR, message, context);
+        try {
+            this.log(Logger.LOG_LEVELS.ERROR, message, context);
+        } catch (e) {
+            console.error('Ошибка при логировании:', e);
+            console.error('Сообщение:', message, 'Контекст:', context);
+        }
     }
 
     warn(message, context = {}) {
-        this.log(Logger.LOG_LEVELS.WARN, message, context);
+        try {
+            this.log(Logger.LOG_LEVELS.WARN, message, context);
+        } catch (e) {
+            console.warn('Ошибка при логировании:', e);
+            console.warn('Сообщение:', message, 'Контекст:', context);
+        }
     }
 
     info(message, context = {}) {
-        this.log(Logger.LOG_LEVELS.INFO, message, context);
+        try {
+            this.log(Logger.LOG_LEVELS.INFO, message, context);
+        } catch (e) {
+            console.info('Ошибка при логировании:', e);
+            console.info('Сообщение:', message, 'Контекст:', context);
+        }
     }
 
     debug(message, context = {}) {
-        this.log(Logger.LOG_LEVELS.DEBUG, message, context);
+        try {
+            this.log(Logger.LOG_LEVELS.DEBUG, message, context);
+        } catch (e) {
+            console.log('Ошибка при логировании:', e);
+            console.log('Сообщение:', message, 'Контекст:', context);
+        }
     }
 
     trace(message, context = {}) {
-        this.log(Logger.LOG_LEVELS.TRACE, message, context);
+        try {
+            this.log(Logger.LOG_LEVELS.TRACE, message, context);
+        } catch (e) {
+            console.log('Ошибка при логировании:', e);
+            console.log('Сообщение:', message, 'Контекст:', context);
+        }
     }
 
     // Управление стеком операций
     pushOperation(operationName, context = {}) {
-        const operationId = this.generateOperationId();
-        const operation = {
-            id: operationId,
-            name: operationName,
-            startTime: Date.now(),
-            context
-        };
-        this.operationStack.push(operation);
-        this.debug(`Начало операции: ${operationName}`, { operationId, ...context });
-        return operationId;
+        try {
+            const operationId = this.generateOperationId();
+            const operation = {
+                id: operationId,
+                name: operationName,
+                startTime: Date.now(),
+                context
+            };
+            this.operationStack.push(operation);
+            this.debug(`Начало операции: ${operationName}`, { operationId, ...context });
+            return operationId;
+        } catch (e) {
+            console.error('Ошибка при начале операции:', e);
+            console.error('Название операции:', operationName, 'Контекст:', context);
+            return null;
+        }
     }
 
     popOperation() {
-        if (this.operationStack.length > 0) {
-            const operation = this.operationStack.pop();
-            const duration = Date.now() - operation.startTime;
-            this.debug(`Завершение операции: ${operation.name}`, {
-                operationId: operation.id,
-                duration: `${duration}ms`,
-                ...operation.context
-            });
-            return operation;
+        try {
+            if (this.operationStack.length > 0) {
+                const operation = this.operationStack.pop();
+                const duration = Date.now() - operation.startTime;
+                this.debug(`Завершение операции: ${operation.name}`, {
+                    operationId: operation.id,
+                    duration: `${duration}ms`,
+                    ...operation.context
+                });
+                return operation;
+            }
+            return null;
+        } catch (e) {
+            console.error('Ошибка при завершении операции:', e);
+            return null;
         }
     }
 
@@ -176,13 +213,19 @@ class Logger {
 
     // Методы для анализа ошибок
     logError(error, context = {}) {
-        this.error(`Ошибка: ${error.message || error}`, {
-            ...context,
-            stack: error.stack,
-            name: error.name,
-            fileName: error.fileName,
-            lineNumber: error.lineNumber
-        });
+        try {
+            this.error(`Ошибка: ${error.message || error}`, {
+                ...context,
+                stack: error.stack,
+                name: error.name,
+                fileName: error.fileName,
+                lineNumber: error.lineNumber
+            });
+        } catch (e) {
+            console.error('Критическая ошибка при логировании ошибки:', e);
+            console.error('Оригинальная ошибка:', error);
+            console.error('Контекст:', context);
+        }
     }
 
     // Включение/выключение логирования
@@ -212,7 +255,7 @@ class Logger {
 }
 
 // Глобальный экземпляр логгера
-const logger = new Logger();
+export const logger = new Logger();
 
 // Добавление логгера в глобальный объект window для отладки
 window.logger = logger;

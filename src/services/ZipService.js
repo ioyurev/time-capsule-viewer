@@ -1,6 +1,8 @@
 /**
  * Класс для работы с ZIP архивами
  */
+import JSZip from 'jszip';
+
 export class ZipService {
     /**
      * Загружает ZIP архив из ArrayBuffer

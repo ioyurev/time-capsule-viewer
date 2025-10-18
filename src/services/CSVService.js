@@ -1,6 +1,8 @@
 /**
  * Класс для работы с CSV файлами
  */
+import Papa from 'papaparse';
+
 export class CSVService {
     /**
      * Парсит CSV строку в массив объектов
