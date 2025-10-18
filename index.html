@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Цифровая капсула времени</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="src/logger.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="main-title">🕒 Цифровая капсула времени</h1>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Переключить тему">
+                    🌙
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="main-content-wrapper">
+                <div id="global-upload-status" class="upload-status" role="status" aria-live="polite"></div>
+                
+                <details class="upload-section-details" id="upload-section-details" open>
+                    <summary class="upload-section-summary">
+                        📁 Загрузка архива
+                    </summary>
+                    <div class="upload-container">
+                        <label for="zipUpload" class="upload-label">
+                            📁 Выберите ZIP-архив для загрузки:
+                        </label>
+                        <input type="file" 
+                               id="zipUpload" 
+                               name="zipUpload"
+                               accept=".zip"
+                               class="upload-input"
+                               aria-describedby="upload-help">
+                        <p id="upload-help" class="upload-help">
+                            Поддерживаются ZIP-файлы с манифестом в формате manifest.txt
+                        </p>
+                    </div>
+                </details>
+
+                <!-- Секция проверки корректности архива -->
+                <section id="validation-section" class="validation-section" hidden>
+                    <details class="validation-details" id="validation-details-container">
+                        <summary class="validation-summary-header">
+                            📋 Результаты проверки архива
+                        </summary>
+                        <div class="validation-content">
+                            <div class="validation-overview">
+                                <div class="validation-item">
+                                    <span class="validation-label">Новости:</span>
+                                    <span class="validation-count" id="news-count">0/5</span>
+                                    <span class="validation-status" id="news-status">❌</span>
+                                </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Медиафайлы:</span>
+                                    <span class="validation-count" id="media-count">0/5</span>
+                                    <span class="validation-status" id="media-status">❌</span>
+                                </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Личные достижения:</span>
+                                    <span class="validation-count" id="personal-count">0/2</span>
+                                    <span class="validation-status" id="personal-status">❌</span>
+                                </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Ключевые слова:</span>
+                                    <span class="validation-count" id="keywords-status">0/0</span>
+                                    <span class="validation-status" id="keywords-validation-status">❌</span>
+                                </div>
+                            </div>
+                            <div class="validation-files" id="validation-files-list"></div>
+                        </div>
+                    </details>
+                </section>
+
+                <section id="archive-section" class="archive-section" aria-labelledby="archive-heading" hidden>
+                    <h2 id="archive-heading" class="section-title">Содержимое архива</h2>
+                    <div id="archive-container" class="archive-container"></div>
+                </section>
+            </div>
+            <aside class="sidebar" id="archive-sidebar" hidden>
+                <h3>📁 Содержимое архива</h3>
+                <div class="file-count" id="file-count">Файлов: 0</div>
+                <ul class="file-list" id="file-list"></ul>
+            </aside>
+        </div>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
