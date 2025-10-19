@@ -46,7 +46,7 @@ export class ArchiveNavigation {
                         if (pdfFile) {
                             try {
                                 const arrayBuffer = await pdfFile.async('arraybuffer');
-                                const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+                                const pdfDocument = await pdfjsLib.getDocument(arrayBuffer.slice(0)).promise;
                                 const metadata = await pdfDocument.getMetadata();
                                 
                                 if (metadata && metadata.info && metadata.info.Title) {
@@ -109,10 +109,11 @@ export class ArchiveNavigation {
         const operationId = this.logger.pushOperation('findExplanationFile', { memFilename });
         try {
             const baseName = memFilename.replace(/\.[^/.]+$/, ""); // Удаляем расширение
+            const baseNameLower = baseName.toLowerCase(); // Для регистронезависимого поиска
             this.logger.debug('Базовое имя файла для поиска объяснения', { baseName, memFilename, operationId });
             
             // Для новой структуры имен: {номер}_{тип}.{расширение} -> {номер}_{тип}_объяснение.txt
-            // Пробуем найти файл объяснения по точному совпадению
+            // Пробуем найти файл объяснения по точному совпадению (регистронезависимо)
             const exactMatchNames = [
                 `${baseName}_объяснение.txt`,
                 `${baseName}_explanation.txt`,
@@ -123,11 +124,13 @@ export class ArchiveNavigation {
             
             this.logger.debug('Поиск по точному совпадению', { exactMatchNames, operationId });
             
+            // Регистронезависимый поиск по точному совпадению
             for (const explanationName of exactMatchNames) {
-                this.logger.debug('Проверка точного совпадения', { explanationName, exists: !!this.parent.zip.file(explanationName), operationId });
-                if (this.parent.zip.file(explanationName)) {
+                const explanationFile = this.findFileCaseInsensitive(explanationName);
+                this.logger.debug('Проверка точного совпадения', { explanationName, exists: !!explanationFile, operationId });
+                if (explanationFile) {
                     this.logger.info('Файл объяснения найден по точному совпадению', { explanationName, operationId });
-                    return this.parent.zip.file(explanationName);
+                    return explanationFile;
                 }
             }
             
@@ -150,25 +153,28 @@ export class ArchiveNavigation {
                 ];
                 
                 for (const explanationName of partialMatchNames) {
-                    this.logger.debug('Проверка частичного совпадения файла', { explanationName, exists: !!this.parent.zip.file(explanationName), operationId });
-                    if (this.parent.zip.file(explanationName)) {
+                    const explanationFile = this.findFileCaseInsensitive(explanationName);
+                    this.logger.debug('Проверка частичного совпадения файла', { explanationName, exists: !!explanationFile, operationId });
+                    if (explanationFile) {
                         this.logger.info('Файл объяснения найден по частичному совпадению', { explanationName, partialName, operationId });
-                        return this.parent.zip.file(explanationName);
+                        return explanationFile;
                     }
                 }
             }
             
             // Дополнительно: ищем файлы объяснений, которые содержат часть имени мема
             const allFiles = Object.keys(this.parent.zip.files);
-            const explanationFiles = allFiles.filter(f => f.includes('_объяснение.txt') || f.includes('_explanation.txt') || 
-                f.includes('_info.txt') || f.includes('_description.txt') || f.includes('_details.txt'));
+            const explanationFiles = allFiles.filter(f => f.toLowerCase().includes('_объяснение.txt') || f.toLowerCase().includes('_explanation.txt') || 
+                f.toLowerCase().includes('_info.txt') || f.toLowerCase().includes('_description.txt') || f.toLowerCase().includes('_details.txt'));
             
             this.logger.debug('Поиск среди всех файлов объяснений', { explanationFiles, operationId });
             
             for (const explanationFile of explanationFiles) {
                 const explanationBase = explanationFile.replace(/\.[^/.]+$/, ""); // Удаляем .txt
-                // Проверяем, является ли базовое имя мема частью имени файла объяснения или наоборот
-                if (explanationBase.includes(baseName) || baseName.includes(explanationBase.replace(/_(объяснение|explanation|info|description|details)$/, ''))) {
+                // Проверяем, является ли базовое имя мема частью имени файла объяснения или наоборот (регистронезависимо)
+                const explanationBaseLower = explanationBase.toLowerCase();
+                const baseNameWithoutSuffix = explanationBaseLower.replace(/_(объяснение|explanation|info|description|details)$/i, '');
+                if (explanationBaseLower.includes(baseNameLower) || baseNameLower.includes(baseNameWithoutSuffix)) {
                     this.logger.info('Файл объяснения найден по частичному соответствию', { explanationFile, baseName, explanationBase, operationId });
                     return this.parent.zip.file(explanationFile);
                 }
@@ -185,34 +191,15 @@ export class ArchiveNavigation {
     }
 
     /**
-     * Генерация безопасного ID для HTML элементов
-     * @param {string} filename - Имя файла
-     * @returns {string} - Безопасный ID
+     * Вспомогательный метод для регистронезависимого поиска файла в ZIP архиве
+     * @param {string} filename - Имя файла для поиска
+     * @returns {Object|null} - Найденный файл или null
      */
-    generateSafeId(filename) {
-        if (typeof filename !== 'string') return 'unknown';
-        
-        // Удаляем расширение файла для генерации ID
-        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
-        
-        // Заменяем все символы, кроме букв, цифр, подчеркиваний и дефисов, на подчеркивания
-        // Также заменяем пробелы на подчеркивания
-        let safeId = nameWithoutExt.replace(/[^\w\u0400-\u04FF\u00C0-\u00FF-]/g, '_');
-        
-        // Удаляем множественные подчеркивания и дефисы
-        safeId = safeId.replace(/[_-]+/g, '_');
-        
-        // Удаляем начальные и конечные подчеркивания/дефисы
-        safeId = safeId.replace(/^[_-]|[_-]$/g, '');
-        
-        // Если результат пустой, используем 'file'
-        if (!safeId) safeId = 'file';
-        
-        // Добавляем префикс, чтобы избежать конфликта с цифрами в начале
-        if (/^\d/.test(safeId)) {
-            safeId = 'file_' + safeId;
-        }
-        
-        return safeId;
+    findFileCaseInsensitive(filename) {
+        const filenameLower = filename.toLowerCase();
+        const allFiles = Object.keys(this.parent.zip.files);
+        const matchingFile = allFiles.find(file => file.toLowerCase() === filenameLower);
+        return matchingFile ? this.parent.zip.file(matchingFile) : null;
     }
+
 }

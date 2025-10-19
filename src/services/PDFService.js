@@ -14,12 +14,122 @@ export class PDFService {
      */
     static async extractMetadata(arrayBuffer) {
         try {
-            const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+            // Создаем копию ArrayBuffer чтобы избежать detachment ошибок
+            const bufferCopy = arrayBuffer.slice(0);
+            const pdfDocument = await pdfjsLib.getDocument(bufferCopy).promise;
             const metadata = await pdfDocument.getMetadata();
             return metadata;
         } catch (error) {
             console.warn('Не удалось извлечь метаданные PDF:', error.message);
             return null;
+        }
+    }
+
+    /**
+     * Извлекает ключевые слова из PDF метаданных
+     * @param {ArrayBuffer} arrayBuffer - Буфер PDF файла
+     * @returns {Promise<Array>} Массив ключевых слов
+     */
+    static async extractKeywords(arrayBuffer) {
+        try {
+            // Создаем копию ArrayBuffer чтобы избежать detachment ошибок
+            const bufferCopy = arrayBuffer.slice(0);
+            const pdfDocument = await pdfjsLib.getDocument(bufferCopy).promise;
+            const metadata = await pdfDocument.getMetadata();
+            
+            const keywords = [];
+            
+            // Извлекаем ключевые слова из основных полей PDF метаданных
+            if (metadata && metadata.info) {
+                // Keywords из DocumentInfo
+                if (metadata.info.Keywords) {
+                    const metaKeywords = metadata.info.Keywords;
+                    if (typeof metaKeywords === 'string') {
+                        // Разделяем по запятым и очищаем
+                        const keywordList = metaKeywords.split(',')
+                            .map(kw => kw.trim())
+                            .filter(kw => kw.length > 0);
+                        keywords.push(...keywordList);
+                    } else if (Array.isArray(metaKeywords)) {
+                        keywords.push(...metaKeywords);
+                    }
+                }
+                
+            }
+            
+            // Извлекаем ключевые слова из XMP данных
+            if (metadata && metadata.xmp) {
+                const xmp = metadata.xmp;
+                
+                // Keywords из XMP
+                if (xmp['pdf:Keywords'] || xmp['xmp:Keywords'] || xmp['dc:subject']) {
+                    const xmpKeywords = xmp['pdf:Keywords'] || xmp['xmp:Keywords'] || xmp['dc:subject'];
+                    if (typeof xmpKeywords === 'string') {
+                        const keywordList = xmpKeywords.split(',')
+                            .map(kw => kw.trim())
+                            .filter(kw => kw.length > 0);
+                        keywords.push(...keywordList);
+                    } else if (Array.isArray(xmpKeywords)) {
+                        keywords.push(...xmpKeywords);
+                    } else if (typeof xmpKeywords === 'object' && xmpKeywords.length) {
+                        // Если это объект с дочерними элементами
+                        for (const item of xmpKeywords) {
+                            if (typeof item === 'string') {
+                                keywords.push(item);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Удаляем дубликаты и возвращаем уникальные ключевые слова
+            return [...new Set(keywords.filter(kw => kw && typeof kw === 'string' && kw.trim().length > 0))];
+        } catch (error) {
+            console.warn('Не удалось извлечь ключевые слова из PDF:', error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Получает нормализованные метаданные PDF для отображения
+     * @param {ArrayBuffer} arrayBuffer - Буфер PDF файла
+     * @returns {Promise<Object>} Нормализованные метаданные
+     */
+    static async getNormalizedMetadata(arrayBuffer) {
+        try {
+            // Создаем копии ArrayBuffer для каждого вызова чтобы избежать detachment ошибок
+            const [metadata, keywords, pageCount] = await Promise.all([
+                this.extractMetadata(arrayBuffer.slice(0)),
+                this.extractKeywords(arrayBuffer.slice(0)),
+                this.getPagesCount(arrayBuffer.slice(0))
+            ]);
+            
+            return {
+                title: metadata?.info?.Title || '',
+                author: metadata?.info?.Author || '',
+                subject: metadata?.info?.Subject || '',
+                keywords: keywords,
+                creationDate: metadata?.info?.CreationDate || '',
+                modificationDate: metadata?.info?.ModDate || '',
+                creator: metadata?.info?.Creator || '',
+                producer: metadata?.info?.Producer || '',
+                pageCount: pageCount,
+                hasKeywords: keywords.length > 0
+            };
+        } catch (error) {
+            console.warn('Не удалось получить нормализованные метаданные PDF:', error.message);
+            return {
+                title: '',
+                author: '',
+                subject: '',
+                keywords: [],
+                creationDate: '',
+                modificationDate: '',
+                creator: '',
+                producer: '',
+                pageCount: 0,
+                hasKeywords: false
+            };
         }
     }
 
@@ -105,7 +215,9 @@ export class PDFService {
      */
     static async getPagesCount(arrayBuffer) {
         try {
-            const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+            // Создаем копию ArrayBuffer чтобы избежать detachment ошибок
+            const bufferCopy = arrayBuffer.slice(0);
+            const pdfDocument = await pdfjsLib.getDocument(bufferCopy).promise;
             return pdfDocument.numPages;
         } catch (error) {
             console.warn('Не удалось получить количество страниц PDF:', error.message);

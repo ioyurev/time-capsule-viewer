@@ -4,18 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Цифровая капсула времени</title>
-    <link rel="stylesheet" href="styles.css">
-    <script type="module" src="src/logger.js"></script>
+    <link rel="stylesheet" href="src/styles/base.css">
+    <link rel="stylesheet" href="src/styles/components.css">
+    <link rel="stylesheet" href="src/styles/layout.css">
+    <link rel="stylesheet" href="src/styles/themes.css">
+    <link rel="stylesheet" href="src/styles/utilities.css">
+    <link rel="stylesheet" href="src/styles/responsive.css">
 </head>
 <body>
     <header class="header">
         <div class="container">
             <div class="header-content">
                 <h1 class="main-title">🕒 Цифровая капсула времени</h1>
-                <button id="theme-toggle" class="theme-toggle" aria-label="Переключить тему">
-                    🌙
-                </button>
             </div>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Переключить тему">
+                🌙
+            </button>
         </div>
     </header>
 
@@ -49,33 +53,94 @@
                     <details class="validation-details" id="validation-details-container">
                         <summary class="validation-summary-header">
                             📋 Результаты проверки архива
+                            <div class="general-progress-container">
+                                <span class="general-validation-count" id="general-validation-count">0/0</span>
+                                <div class="general-progress-bar-container">
+                                    <div class="general-progress-bar" id="general-progress-bar"></div>
+                                </div>
+                                <span class="general-validation-status" id="general-validation-status">❌</span>
+                            </div>
                         </summary>
                         <div class="validation-content">
                             <div class="validation-overview">
                                 <div class="validation-item">
                                     <span class="validation-label">Новости:</span>
-                                    <span class="validation-count" id="news-count">0/5</span>
-                                    <span class="validation-status" id="news-status">❌</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="news-count">0/5</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="news-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="news-status">❌</span>
+                                    </div>
                                 </div>
                                 <div class="validation-item">
-                                    <span class="validation-label">Медиафайлы:</span>
-                                    <span class="validation-count" id="media-count">0/5</span>
-                                    <span class="validation-status" id="media-status">❌</span>
+                                    <span class="validation-label">Мемы:</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="memes-count">0/5</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="memes-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="memes-status">❌</span>
+                                    </div>
                                 </div>
                                 <div class="validation-item">
                                     <span class="validation-label">Личные достижения:</span>
-                                    <span class="validation-count" id="personal-count">0/2</span>
-                                    <span class="validation-status" id="personal-status">❌</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="personal-count">0/2</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="personal-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="personal-status">❌</span>
+                                    </div>
                                 </div>
                                 <div class="validation-item">
                                     <span class="validation-label">Ключевые слова:</span>
-                                    <span class="validation-count" id="keywords-status">0/0</span>
-                                    <span class="validation-status" id="keywords-validation-status">❌</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="keywords-status">0/0</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="keywords-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="keywords-validation-status">❌</span>
+                                    </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Объяснения мемов:</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="meme-explanations-count">0/0</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="meme-explanations-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="meme-explanations-status">❌</span>
+                                    </div>
                                 </div>
-                            </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Объяснения личных достижений:</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="personal-explanations-count">0/0</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="personal-explanations-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="personal-explanations-status">❌</span>
+                                    </div>
+                                </div>
+                                <div class="validation-item">
+                                    <span class="validation-label">Описание капсулы:</span>
+                                    <div class="progress-container">
+                                        <span class="validation-count" id="capsule-count">0/1</span>
+                                        <div class="progress-bar-container">
+                                            <div class="progress-bar" id="capsule-progress-bar"></div>
+                                        </div>
+                                        <span class="validation-status" id="capsule-status">❌</span>
+                                    </div>
+                                </div>
+                            </div> <!-- Закрываем validation-overview -->
                             <div class="validation-files" id="validation-files-list"></div>
-                        </div>
+                        </div> <!-- Закрываем validation-content -->
                     </details>
+                </section>
+
+                <!-- Секция описания капсулы -->
+                <section id="capsule-section" class="capsule-section" hidden>
+                    <div id="capsule-container" class="capsule-container"></div>
                 </section>
 
                 <section id="archive-section" class="archive-section" aria-labelledby="archive-heading" hidden>
@@ -90,6 +155,36 @@
             </aside>
         </div>
     </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>🕒 Цифровая капсула времени</h3>
+                </div>
+                <div class="footer-section">
+                    <h4>Навигация</h4>
+                    <ul class="footer-links">
+                        <li><a href="#upload-section-details" class="footer-link">Загрузка архива</a></li>
+                        <li><a href="#validation-section" class="footer-link">Проверка архива</a></li>
+                        <li><a href="#archive-section" class="footer-link">Содержимое архива</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Контакты</h4>
+                    <p>Разработчик: <a href="mailto:i.o.yurev@ya.ru" class="footer-link">Илья Олегович Юрьев</a></p>
+                    <p>GitFlic: <a href="https://gitflic.ru/project/i-o-yurev/time-capsule-viewer" class="footer-link" target="_blank">time-capsule-viewer</a></p>
+                    <p>GitHub: <a href="https://github.com/ioyurev/time-capsule-viewer" class="footer-link" target="_blank">time-capsule-viewer</a></p>
+                    
+                </div>
+                <div class="footer-section">
+                    <h4>© 2025</h4>
+                    <p>Все права защищены</p>
+                    <p class="footer-year">Цифровая капсула времени v1.0</p>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script type="module" src="src/main.js"></script>
 </body>

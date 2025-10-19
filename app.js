@@ -1,3 +1,5 @@
+//Старая версия приложения для референса
+
 // Конфигурация PDF.js для CDN версии
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -1651,11 +1653,9 @@ class DigitalTimeCapsule {
             const validationSection = document.getElementById('validation-section');
             const validationDetailsContainer = document.getElementById('validation-details-container');
             const newsCountElement = document.getElementById('news-count');
-            const mediaCountElement = document.getElementById('media-count');
             const personalCountElement = document.getElementById('personal-count');
             const keywordsStatusElement = document.getElementById('keywords-status');
             const newsStatusElement = document.getElementById('news-status');
-            const mediaStatusElement = document.getElementById('media-status');
             const personalStatusElement = document.getElementById('personal-status');
             const keywordsValidationStatusElement = document.getElementById('keywords-validation-status');
             const validationFilesListElement = document.getElementById('validation-files-list');

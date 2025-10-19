@@ -54,7 +54,10 @@ example/*.zip
 example/*.mp3
 example/*.pdf
 example/*.png
+example/*.jpg
+example/*.jpeg
 example/*.txt
+example/*.webp
 !example/manifest.txt
 
 # Distribution folder (если используется для сборки)

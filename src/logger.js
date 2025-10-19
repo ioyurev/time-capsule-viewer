@@ -19,11 +19,16 @@ export class Logger {
 
     // Получение уровня логирования из localStorage
     getLogLevelFromStorage() {
-        const savedLevel = localStorage.getItem('logLevel');
-        if (savedLevel && Logger.LOG_LEVELS.hasOwnProperty(savedLevel.toUpperCase())) {
-            return Logger.LOG_LEVELS[savedLevel.toUpperCase()];
+        try {
+            const savedLevel = localStorage.getItem('logLevel');
+            if (savedLevel && Logger.LOG_LEVELS.hasOwnProperty(savedLevel.toUpperCase())) {
+                return Logger.LOG_LEVELS[savedLevel.toUpperCase()];
+            }
+        } catch (error) {
+            // localStorage недоступен или другая ошибка
+            console.warn('localStorage not available, using default log level');
         }
-        return Logger.LOG_LEVELS.INFO; // По умолчанию
+        return Logger.LOG_LEVELS.DEBUG; // По умолчанию теперь DEBUG
     }
 
     // Установка уровня логирования
@@ -33,7 +38,14 @@ export class Logger {
         }
         if (level !== undefined) {
             this.logLevel = level;
-            localStorage.setItem('logLevel', Object.keys(Logger.LOG_LEVELS).find(key => Logger.LOG_LEVELS[key] === level));
+            // Проверяем доступность localStorage перед использованием
+            if (typeof localStorage !== 'undefined') {
+                try {
+                    localStorage.setItem('logLevel', Object.keys(Logger.LOG_LEVELS).find(key => Logger.LOG_LEVELS[key] === level));
+                } catch (error) {
+                    console.warn('localStorage not available for setting log level:', error);
+                }
+            }
         }
     }
 
@@ -257,5 +269,7 @@ export class Logger {
 // Глобальный экземпляр логгера
 export const logger = new Logger();
 
-// Добавление логгера в глобальный объект window для отладки
-window.logger = logger;
+// Добавление логгера в глобальный объект window для отладки (только в браузере)
+if (typeof window !== 'undefined') {
+    window.logger = logger;
+}

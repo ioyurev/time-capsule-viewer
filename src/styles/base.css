@@ -1,0 +1,210 @@
+/* CSS Custom Properties для темизации */
+:root {
+    /* Цвета основные */
+    --color-primary: #3498db;
+    --color-secondary: #2c3e50;
+    --color-accent: #667eea;
+    --color-accent-secondary: #764ba2;
+    --color-success: #4caf50;
+    --color-warning: #ff9800;
+    --color-danger: #f44336;
+    --color-info: #2196f3;
+    
+    /* Цвета фона */
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-validation: #f8f9fa;
+    --bg-upload: #f8f9fa;
+    
+    /* Цвета текста */
+    --text-primary: #2c3e50;
+    --text-secondary: #34495e;
+    --text-tertiary: #6c757d;
+    --text-light: #e0e0e0;
+    --text-dark: #2c3e50;
+    --text-accent: #3498db;
+    --text-warning: #856404;
+    --text-danger: #721c24;
+    --text-success: #155724;
+    
+    /* Цвета границ */
+    --border-primary: #e0e0e0;
+    --border-secondary: #dee2e6;
+    --border-tertiary: #eee;
+    --border-upload: #dee2e6;
+    --border-validation: #dee2e6;
+    
+    /* Цвета прогресс-баров */
+    --progress-success: linear-gradient(90deg, #4caf50, #8bc34a);
+    --progress-warning: linear-gradient(90deg, #ff9800, #ffc107);
+    --progress-danger: linear-gradient(90deg, #f44336, #ff5722);
+    --progress-bg: #e0e0e0;
+    --progress-general-bg: rgba(255, 255, 255, 0.3);
+    
+    /* Размеры и отступы */
+    --container-max-width: 1400px;
+    --container-padding: 20px;
+    --sidebar-width: 25%;
+    --main-content-width: 75%;
+    --border-radius: 12px;
+    --border-radius-sm: 8px;
+    --border-radius-xs: 4px;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.15);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* Темная тема переменные */
+body[data-theme="dark"] {
+    --color-primary: #4a90e2;
+    --color-secondary: #3d3d3d;
+    --color-accent: #667eea;
+    --color-accent-secondary: #764ba2;
+    --color-success: #4caf50;
+    --color-warning: #ff9800;
+    --color-danger: #f44336;
+    --color-info: #2196f3;
+    
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3d3d3d;
+    --bg-card: #2d2d2d;
+    --bg-sidebar: #2d2d2d;
+    --bg-validation: #3d3d3d;
+    --bg-upload: #2a2a2a;
+    
+    --text-primary: #e0e0e0;
+    --text-secondary: #cccccc;
+    --text-tertiary: #aaaaaa;
+    --text-light: #e0e0e0;
+    --text-dark: #ffffff;
+    --text-accent: #4a90e2;
+    --text-warning: #fff3cd;
+    --text-danger: #f8d7da;
+    --text-success: #d4edda;
+    
+    --border-primary: #404040;
+    --border-secondary: #555555;
+    --border-tertiary: #555555;
+    --border-upload: #555555;
+    --border-validation: #555555;
+    
+    --progress-bg: #555555;
+    --progress-general-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* CSS Reset и базовые стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Основные стили контейнера */
+.container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+    display: flex;
+    gap: 20px;
+}
+
+.main-content-wrapper {
+    flex: 1;
+    max-width: var(--main-content-width);
+}
+
+/* Focus стили для доступности */
+*:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Дополнительные стили для доступности */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+summary:focus,
+[tabindex]:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--border-radius-xs);
+}
+
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+summary:focus:not(:focus-visible),
+[tabindex]:focus:not(:focus-visible) {
+    outline: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--border-radius-xs);
+}
+
+/* Скрытие скринридерам */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Стили для элементов с атрибутом aria-hidden */
+[aria-hidden="true"] {
+    display: none !important;
+}
+
+/* Стили для элементов с атрибутом aria-disabled */
+[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* Стили для элементов с атрибутом aria-invalid */
+[aria-invalid="true"] {
+    border-color: var(--color-danger) !important;
+    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2) !important;
+}

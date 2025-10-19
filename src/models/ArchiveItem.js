@@ -11,6 +11,7 @@ export class ArchiveItem {
      * @param {string} config.description - Описание
      * @param {string} config.date - Дата
      * @param {string[]} config.tags - Теги
+     * @param {string} config.author - Автор (для типа КАПСУЛА)
      */
     constructor(config = {}) {
         this.filename = config.filename || '';
@@ -19,6 +20,7 @@ export class ArchiveItem {
         this.description = config.description || '';
         this.date = config.date || '';
         this.tags = Array.isArray(config.tags) ? config.tags : [];
+        this.author = config.author || ''; // Добавляем поле author для типа КАПСУЛА
         
         // Валидация при создании
         this.validate();
@@ -118,6 +120,14 @@ export class ArchiveItem {
     isVideo() {
         const videoExtensions = ['.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv'];
         return videoExtensions.some(ext => this.filename.toLowerCase().endsWith(ext));
+    }
+
+    /**
+     * Проверяет, является ли элемент описанием капсулы
+     * @returns {boolean} Является ли элемент описанием капсулы
+     */
+    isCapsule() {
+        return this.type.toUpperCase() === 'КАПСУЛА';
     }
 
     /**
@@ -225,7 +235,8 @@ export class ArchiveItem {
             title: this.title,
             description: this.description,
             date: this.date,
-            tags: [...this.tags]
+            tags: [...this.tags],
+            author: this.author // Добавляем author в JSON
         };
     }
 
@@ -253,10 +264,18 @@ export class ArchiveItem {
         const filename = parts[0];
         const type = parts[1];
         const isPdf = filename.toLowerCase().endsWith('.pdf');
+        const isCapsule = type.toUpperCase() === 'КАПСУЛА';
         
-        let title, description, date, tags;
+        let title, description, date, tags, author;
         
-        if (isPdf && parts.length === 4) {
+        if (isCapsule && parts.length === 4) {
+            // Формат КАПСУЛА: имя файла | КАПСУЛА | автор | дата
+            author = parts[2];
+            date = parts[3];
+            title = '';
+            description = '';
+            tags = [];
+        } else if (isPdf && parts.length === 4) {
             // Формат PDF: имя файла | тип | дата | теги
             date = parts[2];
             tags = parts[3].split(',').map(tag => tag.trim());
@@ -278,7 +297,8 @@ export class ArchiveItem {
             title,
             description,
             date,
-            tags
+            tags,
+            author // Добавляем author для КАПСУЛА
         });
     }
 }

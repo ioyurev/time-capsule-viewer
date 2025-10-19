@@ -28,6 +28,13 @@ export class DigitalTimeCapsule {
         this.themeManager = new ThemeManager(this);
         this.urlManager = new UrlManager(this);
         
+        // Инициализация прогресс баров валидации
+        setTimeout(() => {
+            if (this.validator.progressManager) {
+                this.validator.progressManager.initializeValidationProgress();
+            }
+        }, 0);
+        
         this.initializeEventListeners();
         this.themeManager.initializeTheme();
         this.clearGlobalStatus(); // Очищаем глобальный статус при инициализации
@@ -123,14 +130,6 @@ export class DigitalTimeCapsule {
         return this.navigation.findExplanationFile(memFilename);
     }
 
-    /**
-     * Генерация безопасного ID для HTML элементов
-     * @param {string} filename - Имя файла
-     * @returns {string} - Безопасный ID
-     */
-    generateSafeId(filename) {
-        return this.navigation.generateSafeId(filename);
-    }
 
     /**
      * Получение эмодзи для типа элемента
@@ -183,7 +182,7 @@ export class DigitalTimeCapsule {
     /**
      * Обновление глобального статуса
      * @param {string} message - Сообщение
-     * @param {'info'|'success'|'error'} statusType - Тип статуса
+     * @param {'info'|'success'|'error'|'loading'} statusType - Тип статуса
      */
     updateGlobalStatus(message, statusType = 'info') {
         const globalUploadStatus = document.getElementById('global-upload-status');
@@ -235,7 +234,7 @@ export class DigitalTimeCapsule {
             });
 
             // Показываем индикатор загрузки
-            this.updateGlobalStatus('Загрузка и распаковка архива...', 'info');
+            this.updateGlobalStatus('Загрузка и распаковка архива...', 'loading');
 
             // Читаем файл как ArrayBuffer
             const arrayBuffer = await file.arrayBuffer();
@@ -291,7 +290,19 @@ export class DigitalTimeCapsule {
             const sidebar = document.getElementById('archive-sidebar');
             if (archiveSection) archiveSection.hidden = false;
             if (validationSection) validationSection.hidden = false;
-            if (sidebar) sidebar.hidden = false;
+            // if (sidebar) sidebar.hidden = false; // Закомментировано для отключения боковой панели
+
+            // Автоматически схлопываем секцию загрузки и раскрываем секцию валидации
+            const uploadSectionDetails = document.getElementById('upload-section-details');
+            const validationDetailsContainer = document.getElementById('validation-details-container');
+            if (uploadSectionDetails) uploadSectionDetails.removeAttribute('open');
+            if (validationDetailsContainer) validationDetailsContainer.setAttribute('open', '');
+
+            // Добавляем класс для центрирования контента при скрытом сайдбаре
+            const container = document.querySelector('.container');
+            if (container && sidebar && sidebar.hidden) {
+                container.classList.add('sidebar-hidden');
+            }
 
         } catch (error) {
             this.logger.logError(error, { operationId });

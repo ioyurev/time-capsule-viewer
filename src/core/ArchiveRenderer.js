@@ -1,4 +1,7 @@
 import { logger } from '../logger.js';
+import { ImageService } from '../services/ImageService.js';
+import { PDFService } from '../services/PDFService.js';
+import { pdfMetadataCache } from '../services/PDFMetadataCache.js';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Настройка PDF.js worker - используем локальную версию из node_modules с правильным URL для Vite
@@ -50,28 +53,200 @@ export class ArchiveRenderer {
                 this.displayManifestErrors(errors, container);
                 return;
             }
+
+            // Извлечение метаданных из PDF файлов до отображения, чтобы обновить заголовки для валидации
+            await this.extractPdfMetadataEarly(items);
             
             container.innerHTML = '';
             this.logger.debug('Контейнер очищен', { operationId });
+
+            // Сначала ищем и отображаем элемент КАПСУЛА, если он есть
+            const capsuleItem = items.find(item => item.type.toUpperCase() === 'КАПСУЛА');
+            if (capsuleItem) {
+                // Отображаем описание капсулы в отдельной секции
+                const capsuleContainer = document.getElementById('capsule-container');
+                if (capsuleContainer) {
+                    await this.renderCapsuleDescription(capsuleItem, capsuleContainer);
+                    // Секция капсулы будет показана после полной обработки архива
+                }
+            }
             
-            // Отображение каждого элемента
+            // Отображение остальных элементов
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
-                await this.renderArchiveItem(item, container);
+                // Пропускаем КАПСУЛА элемент, так как он уже отображен
+                if (item.type.toUpperCase() === 'КАПСУЛА') continue;
+                await this.renderArchiveItem(item, container, i);
                 this.logger.debug('Элемент архива отображен', { index: i, filename: item.filename, operationId });
             }
 
             // Заполнение боковой панели информацией об архиве
-            this.parent.populateSidebar(items);
+            // this.parent.populateSidebar(items); // Закомментировано для отключения боковой панели
             
             // Проверка корректности архива
             this.parent.validateArchive(items);
+            
+            // Показываем секцию капсулы после полной обработки архива, если есть элемент КАПСУЛА
+            if (capsuleItem) {
+                const capsuleSection = document.getElementById('capsule-section');
+                if (capsuleSection) {
+                    capsuleSection.hidden = false;
+                }
+            }
             
             this.logger.info('Архив отображен успешно', { itemsCount: items.length, operationId });
 
         } catch (error) {
             this.logger.logError(error, { operationId });
             throw new Error(`Ошибка при чтении манифеста: ${error.message}`);
+        } finally {
+            this.logger.popOperation();
+        }
+    }
+
+    /**
+     * Извлечение метаданных из PDF файлов до отображения, чтобы обновить заголовки для валидации
+     * @param {Array} items - Массив элементов архива
+     * @returns {Promise<void>}
+     */
+    async extractPdfMetadataEarly(items) {
+        const operationId = this.logger.pushOperation('extractPdfMetadataEarly');
+        try {
+            // Очищаем кэш перед новой загрузкой
+            pdfMetadataCache.clearCache();
+            
+            // Находим все PDF файлы в архиве, исключая ЛИЧНОЕ типы (для них не извлекаем метаданные)
+            const pdfItems = items.filter(item => item.filename.toLowerCase().endsWith('.pdf') && item.type.toUpperCase() !== 'ЛИЧНОЕ');
+            
+            if (pdfItems.length === 0) {
+                this.logger.debug('Нет PDF файлов для извлечения метаданных', { operationId });
+                return;
+            }
+
+            this.logger.debug('Начало извлечения метаданных из PDF файлов', { pdfCount: pdfItems.length, operationId });
+
+            // Извлекаем метаданные для всех PDF файлов параллельно
+            const pdfPromises = pdfItems.map(async (item) => {
+                try {
+                    const pdfFile = this.parent.zip.file(item.filename);
+                    if (!pdfFile) {
+                        this.logger.warn('PDF файл не найден в архиве', { filename: item.filename, operationId });
+                        return;
+                    }
+
+                    const arrayBuffer = await pdfFile.async('arraybuffer');
+                    const metadata = await PDFService.getNormalizedMetadata(arrayBuffer.slice(0));
+                    
+                    // Сохраняем метаданные в кэш
+                    pdfMetadataCache.setMetadata(item.filename, metadata);
+                    
+                    // Обновляем заголовок и описание элемента архива из метаданных PDF
+                    if (metadata.title && metadata.title.trim() !== '') {
+                        item.title = metadata.title;
+                    }
+                    if (metadata.subject && metadata.subject.trim() !== '') {
+                        item.description = metadata.subject;
+                    } else if (metadata.author && metadata.author.trim() !== '') {
+                        item.description = `Автор: ${metadata.author}`;
+                    }
+
+                    // Обновляем теги из ключевых слов PDF, если они есть и больше чем в манифесте
+                    if (metadata.keywords && metadata.keywords.length > 0) {
+                        // Добавляем только уникальные ключевые слова, не дублируя существующие
+                        const existingKeywords = new Set(item.tags.map(tag => tag.toLowerCase().trim()));
+                        const newKeywords = metadata.keywords.filter(keyword => 
+                            keyword.trim() !== '' && !existingKeywords.has(keyword.toLowerCase().trim())
+                        );
+                        
+                        if (newKeywords.length > 0) {
+                            item.tags = [...item.tags, ...newKeywords];
+                            this.logger.debug('Добавлены ключевые слова из PDF', { 
+                                filename: item.filename, 
+                                newKeywordsCount: newKeywords.length, 
+                                totalTags: item.tags.length, 
+                                keywords: newKeywords 
+                            });
+                        } else {
+                            this.logger.debug('Ключевые слова из PDF уже существуют или отсутствуют', { 
+                                filename: item.filename, 
+                                metadataKeywordsCount: metadata.keywords.length,
+                                existingTagsCount: item.tags.length
+                            });
+                        }
+                    } else {
+                        this.logger.debug('PDF не содержит ключевых слов', { 
+                            filename: item.filename, 
+                            hasKeywords: !!metadata.keywords, 
+                            keywordsLength: metadata.keywords ? metadata.keywords.length : 0,
+                            existingTagsCount: item.tags.length
+                        });
+                        
+                        // Попробуем использовать другие метаданные как резервные теги для НОВОСТЬ типов
+                        if (item.type.toUpperCase() === 'НОВОСТЬ') {
+                            const fallbackTags = [];
+                            
+                            // Добавляем тему (Subject) как тег, если она есть
+                            if (metadata.subject && metadata.subject.trim() !== '') {
+                                const subjectTag = metadata.subject.trim();
+                                if (!item.tags.includes(subjectTag) && !fallbackTags.includes(subjectTag)) {
+                                    fallbackTags.push(subjectTag);
+                                }
+                            }
+                            
+                            // Добавляем автора как тег, если он есть
+                            if (metadata.author && metadata.author.trim() !== '') {
+                                const authorTag = metadata.author.trim();
+                                if (!item.tags.includes(authorTag) && !fallbackTags.includes(authorTag)) {
+                                    fallbackTags.push(authorTag);
+                                }
+                            }
+                            
+                            // Добавляем часть заголовка как тег, если он есть и не слишком длинный
+                            if (metadata.title && metadata.title.trim() !== '' && metadata.title.length <= 50) {
+                                const titleTag = metadata.title.trim();
+                                if (!item.tags.includes(titleTag) && !fallbackTags.includes(titleTag)) {
+                                    fallbackTags.push(titleTag);
+                                }
+                            }
+                            
+                            if (fallbackTags.length > 0) {
+                                const existingKeywords = new Set(item.tags.map(tag => tag.toLowerCase().trim()));
+                                const uniqueFallbackTags = fallbackTags.filter(tag => !existingKeywords.has(tag.toLowerCase().trim()));
+                                
+                                if (uniqueFallbackTags.length > 0) {
+                                    item.tags = [...item.tags, ...uniqueFallbackTags];
+                                    this.logger.debug('Добавлены резервные теги из других метаданных PDF для НОВОСТЬ', { 
+                                        filename: item.filename, 
+                                        fallbackTags: uniqueFallbackTags, 
+                                        totalTags: item.tags.length 
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    this.logger.debug('Метаданные PDF извлечены и применены', { 
+                        filename: item.filename, 
+                        title: item.title, 
+                        keywordsCount: item.tags.length, 
+                        operationId 
+                    });
+                } catch (error) {
+                    this.logger.warn('Не удалось извлечь метаданные PDF для раннего обновления', { 
+                        filename: item.filename, 
+                        error: error.message, 
+                        operationId 
+                    });
+                    // Не прерываем процесс из-за ошибки одного файла
+                }
+            });
+
+            // Ждем завершения извлечения метаданных для всех PDF файлов
+            await Promise.all(pdfPromises);
+            
+            this.logger.info('Метаданные PDF файлов извлечены и применены', { pdfCount: pdfItems.length, operationId });
+        } catch (error) {
+            this.logger.logError(error, { operationId });
         } finally {
             this.logger.popOperation();
         }
@@ -151,14 +326,15 @@ export class ArchiveRenderer {
      * Отображение отдельного элемента архива
      * @param {Object} item - Элемент архива
      * @param {HTMLElement} container - Контейнер для отображения
+     * @param {number} index - Индекс элемента в архиве
      * @returns {Promise<void>}
      */
-    async renderArchiveItem(item, container) {
-        const operationId = this.logger.pushOperation('renderArchiveItem', { filename: item.filename });
+    async renderArchiveItem(item, container, index) {
+        const operationId = this.logger.pushOperation('renderArchiveItem', { filename: item.filename, index });
         try {
             const itemElement = document.createElement('div');
             itemElement.className = 'archive-item';
-            itemElement.id = this.parent.generateSafeId(item.filename);
+            itemElement.id = `item-${index}`;
 
             // Определяем тип файла по расширению
             const fileExtension = item.filename.split('.').pop().toLowerCase();
@@ -178,7 +354,7 @@ export class ArchiveRenderer {
                 if (pdfFile) {
                     try {
                         const arrayBuffer = await pdfFile.async('arraybuffer');
-                        const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        const pdfDocument = await pdfjsLib.getDocument(arrayBuffer.slice(0)).promise;
                         const metadata = await pdfDocument.getMetadata();
 
                         if (metadata && metadata.info) {
@@ -198,142 +374,26 @@ export class ArchiveRenderer {
                 }
             }
 
-            // Создаем контент в зависимости от типа файла
-            let contentHtml = '';
-            let url = '';
-
-            if (isPdf) {
-                const pdfFile = this.parent.zip.file(item.filename);
-                if (pdfFile) {
-                    const arrayBuffer = await pdfFile.async('arraybuffer');
-                    const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-                    url = URL.createObjectURL(blob);
-                    this.parent.urlManager.addUrl(url, 'pdf'); // Сохраняем для очистки
-
-                    contentHtml = `
-                        <iframe class="pdf-viewer" src="${url}"></iframe>
-                        <div style="margin-top: 10px;">
-                            <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
-                                📥 Скачать PDF
-                            </a>
-                        </div>
-                    `;
-                }
-            } else if (isImage) {
-                const imageFile = this.parent.zip.file(item.filename);
-                if (imageFile) {
-                    const uint8Array = await imageFile.async('uint8array');
-                    const blob = new Blob([uint8Array], { type: `image/${fileExtension}` });
-                    url = URL.createObjectURL(blob);
-                    this.parent.urlManager.addUrl(url, 'image'); // Сохраняем для очистки
-
-                    contentHtml = `<img src="${url}" alt="${this.parent.escapeHtml(displayTitle)}" loading="lazy">`;
-                }
-            } else if (isVideo) {
-                const videoFile = this.parent.zip.file(item.filename);
-                if (videoFile) {
-                    const uint8Array = await videoFile.async('uint8array');
-                    const blob = new Blob([uint8Array], { type: 'video/mp4' }); // Для упрощения используем mp4
-                    url = URL.createObjectURL(blob);
-                    this.parent.urlManager.addUrl(url, 'video'); // Сохраняем для очистки
-
-                    contentHtml = `
-                        <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
-                            <source src="${url}" type="video/mp4">
-                            Ваш браузер не поддерживает видео.
-                        </video>
-                    `;
-                }
-            } else if (isAudio) {
-                const audioFile = this.parent.zip.file(item.filename);
-                if (audioFile) {
-                    const uint8Array = await audioFile.async('uint8array');
-                    const blob = new Blob([uint8Array], { type: 'audio/mpeg' }); // Для упрощения используем mp3
-                    url = URL.createObjectURL(blob);
-                    this.parent.urlManager.addUrl(url, 'audio'); // Сохраняем для очистки
-
-                    contentHtml = `
-                        <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
-                            <source src="${url}" type="audio/mpeg">
-                            Ваш браузер не поддерживает аудио.
-                        </video>
-                    `;
-                }
-            } else if (isCsv) {
-                const csvFile = this.parent.zip.file(item.filename);
-                if (csvFile) {
-                    const textContent = await csvFile.async('text');
-                    const Papa = await import('papaparse'); // Динамический импорт
-                    const results = Papa.default.parse(textContent, { header: true });
-                    if (results.data.length > 0 && results.data[0]) {
-                        let tableHtml = '<table class="data-table"><thead><tr>';
-                        // Заголовки
-                        Object.keys(results.data[0]).forEach(key => {
-                            tableHtml += `<th>${this.parent.escapeHtml(key)}</th>`;
-                        });
-                        tableHtml += '</tr></thead><tbody>';
-                        // Данные
-                        results.data.forEach(row => {
-                            tableHtml += '<tr>';
-                            Object.values(row).forEach(cell => {
-                                tableHtml += `<td>${this.parent.escapeHtml(String(cell))}</td>`;
-                            });
-                            tableHtml += '</tr>';
-                        });
-                        tableHtml += '</tbody></table>';
-                        contentHtml = tableHtml;
-                    } else {
-                        const blob = await csvFile.async('blob');
-                        const csvUrl = URL.createObjectURL(blob);
-                        this.parent.urlManager.addUrl(csvUrl, 'csv');
-                        contentHtml = `
-                            <a href="${csvUrl}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
-                                📥 Скачать CSV файл (${this.parent.escapeHtml(item.filename)})
-                            </a>
-                        `;
-                    }
-                }
-            } else if (isText) {
-                const textFile = this.parent.zip.file(item.filename);
-                if (textFile) {
-                    const textContent = await textFile.async('text');
-                    contentHtml = `<pre class="text-content">${this.parent.escapeHtml(textContent)}</pre>`;
-                }
-            } else {
-                // Для других типов файлов создаем ссылку для скачивания
-                const defaultFile = this.parent.zip.file(item.filename);
-                if (defaultFile) {
-                    const uint8Array = await defaultFile.async('uint8array');
-                    const blob = new Blob([uint8Array]);
-                    url = URL.createObjectURL(blob);
-                    this.parent.urlManager.addUrl(url, 'default'); // Сохраняем для очистки
-
-                    contentHtml = `
-                        <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
-                            📥 Скачать файл (${this.parent.escapeHtml(item.filename)})
-                        </a>
-                    `;
-                }
-            }
-
             // Формируем HTML элемента архива в стиле app.js
             const emoji = this.parent.getItemEmoji(item.type);
-            const previewId = `preview-${this.parent.generateSafeId(item.filename)}`;
+            const previewId = `preview-${index}`;
 
-            // Проверяем, является ли это мемом и ищем связанные файлы объяснений
+            // Проверяем, является ли это мемом или личным достижением и ищем связанные файлы объяснений
             const isMem = item.type.toUpperCase() === 'МЕМ';
+            const isPersonal = item.type.toUpperCase() === 'ЛИЧНОЕ';
             let explanationFile = null;
-            if (isMem) {
+            if (isMem || isPersonal) {
                 explanationFile = this.parent.findExplanationFile(item.filename);
             }
 
             let explanationHtml = '';
-            if (isMem && explanationFile) {
-                const explanationPreviewId = `explanation-${this.parent.generateSafeId(item.filename)}`;
+            if (explanationFile) {
+                const explanationPreviewId = `explanation-${index}`;
+                const explanationTitle = isMem ? 'мема' : 'личного достижения';
                 explanationHtml = `
                     <details class="content-details explanation-details" style="margin-top: 15px;">
-                        <summary aria-label="Показать объяснение мема ${this.parent.escapeHtml(displayTitle)}">
-                            💡 Объяснение мема
+                        <summary aria-label="Показать объяснение ${explanationTitle} ${this.parent.escapeHtml(displayTitle)}">
+                            💡 Объяснение ${explanationTitle}
                         </summary>
                         <div class="content-preview" id="${explanationPreviewId}" style="margin-top: 10px;">
                             <div class="loading">Загрузка объяснения...</div>
@@ -348,11 +408,15 @@ export class ArchiveRenderer {
                 if (pdfFile) {
                     try {
                         const arrayBuffer = await pdfFile.async('arraybuffer');
-                        const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        const pdfDocument = await pdfjsLib.getDocument(arrayBuffer.slice(0)).promise;
                         const metadata = await pdfDocument.getMetadata();
 
                         let pdfMetadataHtml = '';
-                        if (metadata && metadata.info) {
+                        let pdfContentHtml = '';
+                        let url = '';
+
+                        // Показываем метаданные только для не-ЛИЧНОЕ типов PDF файлов
+                        if (metadata && metadata.info && item.type.toUpperCase() !== 'ЛИЧНОЕ') {
                             const info = metadata.info;
                             pdfMetadataHtml = `
                                 <details class="pdf-metadata-details">
@@ -388,17 +452,26 @@ export class ArchiveRenderer {
                                 `;
                             }
 
+                            // Получаем количество страниц из кэша метаданных
+                            const cachedMetadata = pdfMetadataCache.getMetadata(item.filename);
+                            const pageCount = cachedMetadata?.pageCount || 0;
+
                             pdfMetadataHtml += `
                                         </div>
                                         <div class="metadata-page-count">
-                                            <strong>Количество страниц:</strong> ${pdfDocument.numPages}
+                                            <strong>Количество страниц:</strong> ${pageCount}
                                         </div>
                                     </div>
                                 </details>
                             `;
                         }
 
-                        const pdfContentHtml = `
+                        // Создаем URL для PDF
+                        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+                        url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'pdf');
+
+                        pdfContentHtml = `
                             <details class="pdf-content-details">
                                 <summary class="pdf-content-summary" aria-label="Показать содержимое PDF файла ${this.parent.escapeHtml(displayTitle)}">
                                     👁 Просмотр PDF
@@ -414,6 +487,19 @@ export class ArchiveRenderer {
                             </details>
                         `;
 
+                        // Для PDF файлов используем теги из кэша метаданных для не-ЛИЧНОЕ типов, и из манифеста для ЛИЧНОЕ типов
+                        // Важно: item.tags уже включает ключевые слова из PDF, извлеченные в extractPdfMetadataEarly
+                        let tagsHtml = '';
+                        if (item.type.toUpperCase() === 'ЛИЧНОЕ') {
+                            // Для ЛИЧНОЕ типов используем теги из манифеста (не извлекаем из PDF)
+                            tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                        } else {
+                            // Для других типов используем уже обновленные теги из item.tags (которые включают PDF keywords)
+                            // Убедимся, что теги не пустые и не содержат только пробелы
+                            const validTags = item.tags.filter(tag => tag && tag.trim() !== '');
+                            tagsHtml = validTags.length > 0 ? validTags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                        }
+
                         itemElement.innerHTML = `
                             <div class="item-header">
                                 <div class="item-meta">
@@ -421,7 +507,7 @@ export class ArchiveRenderer {
                                     <div class="item-type">${this.parent.escapeHtml(item.type)}</div>
                                     <div class="item-date">${this.parent.escapeHtml(item.date)}</div>
                                 </div>
-                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ')}</h3>
+                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
                             <div class="content-preview" id="${previewId}" style="margin-top: 10px;">
@@ -434,6 +520,29 @@ export class ArchiveRenderer {
                         // Если не удалось получить метаданные, используем обычное отображение
                         this.logger.warn('Не удалось получить метаданные PDF для отображения', { error: error.message, filename: item.filename });
 
+                        // Создаем URL для PDF
+                        const arrayBuffer = await pdfFile.async('arraybuffer');
+                        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+                        const url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'pdf');
+
+                        // Для резервного отображения PDF также используем теги из кэша метаданных для не-ЛИЧНОЕ типов, и из манифеста для ЛИЧНОЕ типов
+                        let tagsHtml = '';
+                        if (item.type.toUpperCase() === 'ЛИЧНОЕ') {
+                            // Для ЛИЧНОЕ типов используем теги из манифеста
+                            tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                        } else {
+                            // Для других типов используем теги из кэша метаданных, с резервом на теги из манифеста
+                            const pdfTags = pdfMetadataCache.getTags(item.filename);
+                            if (pdfTags && pdfTags.length > 0) {
+                                // Если есть теги в кэше, используем их
+                                tagsHtml = pdfTags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ');
+                            } else {
+                                // Если нет тегов в кэше, используем теги из манифеста как резерв
+                                tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                            }
+                        }
+
                         itemElement.innerHTML = `
                             <div class="item-header">
                                 <div class="item-meta">
@@ -441,7 +550,7 @@ export class ArchiveRenderer {
                                     <div class="item-type">${this.parent.escapeHtml(item.type)}</div>
                                     <div class="item-date">${this.parent.escapeHtml(item.date)}</div>
                                 </div>
-                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ')}</h3>
+                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
                             <details class="content-details">
@@ -462,7 +571,107 @@ export class ArchiveRenderer {
                     }
                 }
             } else {
-                // Для других типов файлов используем общий спойлер
+                // Для других типов файлов создаем контент и используем общий спойлер
+                let contentHtml = '';
+                let url = '';
+
+                if (isImage) {
+                    const imageFile = this.parent.zip.file(item.filename);
+                    if (imageFile) {
+                        const uint8Array = await imageFile.async('uint8array');
+                        const blob = new Blob([uint8Array], { type: `image/${fileExtension}` });
+                        url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'image'); // Сохраняем для очистки
+
+                        contentHtml = `<img src="${url}" alt="${this.parent.escapeHtml(displayTitle)}" loading="lazy">`;
+                    }
+                } else if (isVideo) {
+                    const videoFile = this.parent.zip.file(item.filename);
+                    if (videoFile) {
+                        const uint8Array = await videoFile.async('uint8array');
+                        const blob = new Blob([uint8Array], { type: 'video/mp4' }); // Для упрощения используем mp4
+                        url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'video'); // Сохраняем для очистки
+
+                        contentHtml = `
+                            <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                                <source src="${url}" type="video/mp4">
+                                Ваш браузер не поддерживает видео.
+                            </video>
+                        `;
+                    }
+                } else if (isAudio) {
+                    const audioFile = this.parent.zip.file(item.filename);
+                    if (audioFile) {
+                        const uint8Array = await audioFile.async('uint8array');
+                        const blob = new Blob([uint8Array], { type: 'audio/mpeg' }); // Для упрощения используем mp3
+                        url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'audio'); // Сохраняем для очистки
+
+                        contentHtml = `
+                            <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                                <source src="${url}" type="audio/mpeg">
+                                Ваш браузер не поддерживает аудио.
+                            </video>
+                        `;
+                    }
+                } else if (isCsv) {
+                    const csvFile = this.parent.zip.file(item.filename);
+                    if (csvFile) {
+                        const textContent = await csvFile.async('text');
+                        const Papa = await import('papaparse'); // Динамический импорт
+                        const results = Papa.default.parse(textContent, { header: true });
+                        if (results.data.length > 0 && results.data[0]) {
+                            let tableHtml = '<table class="data-table"><thead><tr>';
+                            // Заголовки
+                            Object.keys(results.data[0]).forEach(key => {
+                                tableHtml += `<th>${this.parent.escapeHtml(key)}</th>`;
+                            });
+                            tableHtml += '</tr></thead><tbody>';
+                            // Данные
+                            results.data.forEach(row => {
+                                tableHtml += '<tr>';
+                                Object.values(row).forEach(cell => {
+                                    tableHtml += `<td>${this.parent.escapeHtml(String(cell))}</td>`;
+                                });
+                                tableHtml += '</tr>';
+                            });
+                            tableHtml += '</tbody></table>';
+                            contentHtml = tableHtml;
+                        } else {
+                            const blob = await csvFile.async('blob');
+                            const csvUrl = URL.createObjectURL(blob);
+                            this.parent.urlManager.addUrl(csvUrl, 'csv');
+                            contentHtml = `
+                                <a href="${csvUrl}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
+                                    📥 Скачать CSV файл (${this.parent.escapeHtml(item.filename)})
+                                </a>
+                            `;
+                        }
+                    }
+                } else if (isText) {
+                    const textFile = this.parent.zip.file(item.filename);
+                    if (textFile) {
+                        const textContent = await textFile.async('text');
+                        contentHtml = `<pre class="text-content">${this.parent.escapeHtml(textContent)}</pre>`;
+                    }
+                } else {
+                    // Для других типов файлов создаем ссылку для скачивания
+                    const defaultFile = this.parent.zip.file(item.filename);
+                    if (defaultFile) {
+                        const uint8Array = await defaultFile.async('uint8array');
+                        const blob = new Blob([uint8Array]);
+                        url = URL.createObjectURL(blob);
+                        this.parent.urlManager.addUrl(url, 'default'); // Сохраняем для очистки
+
+                        contentHtml = `
+                            <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
+                                📥 Скачать файл (${this.parent.escapeHtml(item.filename)})
+                            </a>
+                        `;
+                    }
+                }
+
                 itemElement.innerHTML = `
                     <div class="item-header">
                         <div class="item-meta">
@@ -470,7 +679,7 @@ export class ArchiveRenderer {
                             <div class="item-type">${this.parent.escapeHtml(item.type)}</div>
                             <div class="item-date">${this.parent.escapeHtml(item.date)}</div>
                         </div>
-                        <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ')}</h3>
+                        <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : ''}</h3>
                     </div>
                     <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
                     <details class="content-details">
@@ -486,14 +695,22 @@ export class ArchiveRenderer {
             }
 
             container.appendChild(itemElement);
-            this.logger.debug('Элемент архива создан', { filename: item.filename, type: fileExtension, operationId });
+            this.logger.debug('Элемент архива создан и добавлен в DOM', { filename: item.filename, type: fileExtension, index, previewId, operationId });
 
-            // Загрузка и отображение основного контента
-            await this.loadContent(item);
+            // Загрузка и отображение основного контента с гарантией, что элемент в DOM
+            // Используем более надежный подход с requestAnimationFrame и проверкой наличия элемента
+            this.scheduleContentLoading(async () => {
+                this.logger.debug('Начало загрузки контента', { filename: item.filename, index, previewId, operationId });
+                await this.loadContent(item, index);
+            }, previewId);
             
-            // Загрузка и отображение объяснения, если это мем с файлом объяснения
-            if (isMem && explanationFile) {
-                await this.loadExplanationContent(explanationFile, `explanation-${this.parent.generateSafeId(item.filename)}`);
+            // Загрузка и отображение объяснения, если это мем или личное достижение с файлом объяснения
+            if (explanationFile) {
+                const explanationPreviewId = `explanation-${index}`;
+                this.scheduleContentLoading(async () => {
+                    this.logger.debug('Начало загрузки объяснения', { filename: item.filename, index, explanationPreviewId, operationId });
+                    await this.loadExplanationContent(explanationFile, explanationPreviewId);
+                }, explanationPreviewId);
             }
 
         } catch (error) {
@@ -532,17 +749,50 @@ export class ArchiveRenderer {
     }
 
     /**
+     * Планирование загрузки контента с гарантией, что элемент существует в DOM
+     * @param {Function} callback - Функция загрузки контента
+     * @param {string} previewId - ID элемента предпросмотра
+     */
+    scheduleContentLoading(callback, previewId) {
+        const checkAndLoad = () => {
+            // Проверяем, существует ли элемент в DOM
+            const previewDiv = document.getElementById(previewId);
+            if (previewDiv) {
+                // Элемент найден, выполняем загрузку
+                callback();
+            } else {
+                // Элемент еще не существует, проверяем снова через requestAnimationFrame
+                if (typeof requestAnimationFrame !== 'undefined') {
+                    requestAnimationFrame(checkAndLoad);
+                } else {
+                    // Резервный вариант для браузеров без requestAnimationFrame
+                    setTimeout(checkAndLoad, 16); // ~60fps
+                }
+            }
+        };
+
+        // Начинаем проверку
+        if (typeof requestAnimationFrame !== 'undefined') {
+            requestAnimationFrame(checkAndLoad);
+        } else {
+            setTimeout(checkAndLoad, 16);
+        }
+    }
+
+    /**
      * Загрузка и отображение содержимого файла
      * @param {Object} item - Элемент архива
+     * @param {number} index - Индекс элемента (обязательно для новой системы)
      * @returns {Promise<void>}
      */
-    async loadContent(item) {
-        const operationId = this.logger.pushOperation('loadContent', { filename: item.filename });
+    async loadContent(item, index) {
+        const operationId = this.logger.pushOperation('loadContent', { filename: item.filename, index });
         try {
-            const previewId = `preview-${this.parent.generateSafeId(item.filename)}`;
+            // Используем только индекс-базированные ID без резервной логики
+            const previewId = `preview-${index}`;
             const previewDiv = document.getElementById(previewId);
             if (!previewDiv) {
-                this.logger.warn('Элемент предпросмотра не найден', { previewId, operationId });
+                this.logger.warn('Элемент предпросмотра не найден', { previewId, index, operationId });
                 return;
             }
 
@@ -639,12 +889,97 @@ export class ArchiveRenderer {
     async handleImageFile(file, item, previewDiv, parentOperationId = null) {
         const operationId = this.logger.pushOperation('handleImageFile', { filename: item.filename, parentOperationId });
         try {
+            // Получаем данные изображения
             const imageData = await file.async('base64');
             const imageUrl = `data:image/${item.filename.split('.').pop()};base64,${imageData}`;
-            previewDiv.innerHTML = `<img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy">`;
-            this.logger.debug('Изображение обработано успешно', { filename: item.filename, operationId });
+            
+            // Извлекаем метаданные изображения
+            const uint8Array = await file.async('uint8array');
+            const metadata = await ImageService.extractMetadata(uint8Array);
+            const displayMetadata = ImageService.getDisplayMetadata(metadata);
+            
+            // Формируем HTML для метаданных изображения (аналогично PDF)
+            let imageMetadataHtml = '';
+            if (metadata && metadata.hasMetadata) {
+                imageMetadataHtml = `
+                    <details class="image-metadata-details">
+                        <summary class="image-metadata-summary" aria-label="Показать метаданные изображения ${this.parent.escapeHtml(item.title)}">
+                            📸 Метаданные изображения
+                        </summary>
+                        <div class="image-metadata-content">
+                            <div class="metadata-grid">
+                `;
+
+                if (displayMetadata.title) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-main">Заголовок:</strong>
+                        <span>${this.parent.escapeHtml(displayMetadata.title)}</span>
+                    `;
+                }
+                if (displayMetadata.description) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-main">Описание:</strong>
+                        <span>${this.parent.escapeHtml(displayMetadata.description)}</span>
+                    `;
+                }
+                if (displayMetadata.author) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-main">Автор:</strong>
+                        <span>${this.parent.escapeHtml(displayMetadata.author)}</span>
+                    `;
+                }
+                if (displayMetadata.keywords && displayMetadata.keywords.length > 0) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-main">Ключевые слова:</strong>
+                        <span>${this.parent.escapeHtml(displayMetadata.keywords.join(', '))}</span>
+                    `;
+                }
+                if (displayMetadata.creationDate) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-secondary">Дата создания:</strong>
+                        <span class="metadata-field-secondary">${this.parent.escapeHtml(displayMetadata.creationDate)}</span>
+                    `;
+                }
+
+                // Добавляем GPS данные если есть
+                if (displayMetadata.gps) {
+                    imageMetadataHtml += `
+                        <strong class="metadata-field-secondary">Координаты:</strong>
+                        <span class="metadata-field-secondary">${this.parent.escapeHtml(displayMetadata.gps.latitude.toFixed(6))}, ${this.parent.escapeHtml(displayMetadata.gps.longitude.toFixed(6))}</span>
+                    `;
+                }
+
+                imageMetadataHtml += `
+                            </div>
+                        </div>
+                    </details>
+                `;
+            }
+
+            // Формируем HTML для отображения изображения и метаданных
+            const imageContentHtml = `
+                <details class="image-content-details">
+                    <summary class="image-content-summary" aria-label="Показать содержимое изображения ${this.parent.escapeHtml(item.title)}">
+                        👁 Просмотр изображения
+                    </summary>
+                    <div class="image-content-content">
+                        <img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy" style="max-width: 100%; height: auto; display: block; margin: 10px 0;">
+                        <div class="image-download-section">
+                            <a href="${this.parent.escapeHtml(imageUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
+                                📥 Скачать изображение
+                            </a>
+                        </div>
+                    </div>
+                </details>
+            `;
+
+            previewDiv.innerHTML = `
+                ${imageMetadataHtml}
+                ${imageContentHtml}
+            `;
+            this.logger.debug('Изображение с метаданными обработано успешно', { filename: item.filename, hasMetadata: !!metadata?.hasMetadata, operationId });
         } catch (e) {
-            this.logger.debug('Ошибка при обработке изображения, пробуем резервный метод', { error: e.message, operationId });
+            this.logger.debug('Ошибка при обработке изображения с метаданными, пробуем резервный метод', { error: e.message, operationId });
             try {
                 // Резервный метод для больших файлов
                 const imageBlob = await file.async('blob');
@@ -788,23 +1123,87 @@ export class ArchiveRenderer {
             const arrayBuffer = await file.async('arraybuffer');
             this.logger.debug('ArrayBuffer получен', { size: arrayBuffer.byteLength, operationId });
             
-            // Создаем копию ArrayBuffer для data URL до использования в PDF.js
-            const arrayBufferCopy = arrayBuffer.slice(0);
-            const uint8Array = new Uint8Array(arrayBufferCopy);
-            const dataUrl = `data:application/pdf;base64,${this.arrayBufferToBase64(uint8Array)}`;
+            // Создаем копию ArrayBuffer для создания data URL (остальные метаданные берем из кэша)
+            const arrayBufferForDataUrl = arrayBuffer.slice(0);
+            
+            // Извлекаем метаданные из кэша, так как они уже были обработаны в extractPdfMetadataEarly
+            const cachedMetadata = pdfMetadataCache.getMetadata(item.filename);
+            let metadata = null;
+            let pdfKeywords = [];
+            
+            if (cachedMetadata) {
+                // Используем закэшированные метаданные
+                metadata = {
+                    info: {
+                        Title: cachedMetadata.title,
+                        Author: cachedMetadata.author,
+                        Subject: cachedMetadata.subject,
+                        Keywords: cachedMetadata.keywords ? cachedMetadata.keywords.join(', ') : null,
+                        CreationDate: cachedMetadata.creationDate,
+                        ModDate: cachedMetadata.modificationDate,
+                        Creator: cachedMetadata.creator,
+                        Producer: cachedMetadata.producer
+                    }
+                };
+                pdfKeywords = cachedMetadata.keywords || [];
+                this.logger.debug('Использованы закэшированные метаданные', { 
+                    filename: item.filename, 
+                    keywordsCount: pdfKeywords.length, 
+                    hasInfo: !!metadata.info 
+                });
+            } else {
+                // Если метаданные не закэшированы, загружаем PDF и извлекаем их (резервный вариант)
+                const pdfDocument = await pdfjsLib.getDocument(arrayBuffer.slice(0)).promise;
+                metadata = await pdfDocument.getMetadata();
+                pdfKeywords = await PDFService.extractKeywords(arrayBuffer.slice(0));
+                this.logger.debug('Метаданные извлечены в резервном режиме', { 
+                    filename: item.filename, 
+                    hasMetadata: !!metadata.info, 
+                    keywordsCount: pdfKeywords.length 
+                });
+            }
+            
+            
+            // Создаем data URL для iframe
+            const dataUrl = `data:application/pdf;base64,${this.arrayBufferToBase64(new Uint8Array(arrayBufferForDataUrl))}`;
             this.logger.debug('Data URL создан для PDF', { operationId });
             
-            // Загружаем PDF документ с помощью PDF.js (используем оригинальный ArrayBuffer)
-            const pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
-            this.logger.debug('PDF документ загружен', { pages: pdfDocument.numPages, operationId });
-            
-            // Извлекаем метаданные
-            const metadata = await pdfDocument.getMetadata();
-            this.logger.debug('Метаданные извлечены', { hasMetadata: !!metadata.info, operationId });
+            // Обновляем заголовок элемента архива с тегами, учитывая тип файла
+            // Но только если теги еще не были установлены в основном рендеринге
+            const archiveItemElement = previewDiv.closest('.archive-item');
+            if (archiveItemElement) {
+                const titleElement = archiveItemElement.querySelector('.item-title');
+                if (titleElement) {
+                    // Проверяем, содержит ли элемент уже теги (чтобы не перезаписывать)
+                    const existingTitleContent = titleElement.innerHTML;
+                    if (!existingTitleContent.includes('class="title-tags"')) {
+                        const currentTitle = item.title || item.filename;
+                        
+                        let keywordTags = '';
+                        if (item.type.toUpperCase() === 'ЛИЧНОЕ') {
+                            // Для ЛИЧНОЕ типов используем теги из манифеста, а не из кэша
+                            keywordTags = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                        } else {
+                            // Для других типов используем теги из кэша метаданных, с резервом на теги из манифеста
+                            const pdfTags = pdfMetadataCache.getTags(item.filename);
+                            if (pdfTags && pdfTags.length > 0) {
+                                // Если есть теги в кэше, используем их
+                                keywordTags = pdfTags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ');
+                            } else {
+                                // Если нет тегов в кэше, используем теги из манифеста как резерв
+                                keywordTags = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                            }
+                        }
+                        
+                        titleElement.innerHTML = `${this.parent.escapeHtml(currentTitle)} ${keywordTags}`;
+                    }
+                }
+            }
             
             // Формируем HTML для отображения метаданных и PDF как двух отдельных спойлеров
             let metadataHtml = '';
-            if (metadata && metadata.info) {
+            // Показываем метаданные только для не-ЛИЧНОЕ типов PDF файлов
+            if (metadata && metadata.info && item.type.toUpperCase() !== 'ЛИЧНОЕ') {
                 const info = metadata.info;
                 this.logger.debug('Обработка метаданных PDF', { metadataKeys: Object.keys(info), operationId });
                 metadataHtml = `
@@ -842,6 +1241,12 @@ export class ArchiveRenderer {
                     metadataHtml += `
                         <strong class="metadata-field-main">Ключевые слова:</strong>
                         <span>${this.parent.escapeHtml(info.Keywords)}</span>
+                    `;
+                } else if (pdfKeywords.length > 0) {
+                    // Показываем ключевые слова из PDFService если нет в метаданных документа
+                    metadataHtml += `
+                        <strong class="metadata-field-main">Ключевые слова:</strong>
+                        <span>${this.parent.escapeHtml(pdfKeywords.join(', '))}</span>
                     `;
                 }
                 if (info.CreationDate) {
@@ -914,10 +1319,27 @@ export class ArchiveRenderer {
                     `;
                 }
                 
+                // Получаем количество страниц из кэша или из PDF документа
+                let pageCount = 0;
+                if (cachedMetadata && cachedMetadata.pageCount) {
+                    pageCount = cachedMetadata.pageCount;
+                } else if (pdfDocument) {
+                    pageCount = pdfDocument.numPages;
+                } else {
+                    // Если нет кэша и pdfDocument, пробуем получить из PDF Service
+                    try {
+                        const tempPdfDocument = await pdfjsLib.getDocument(arrayBuffer.slice(0)).promise;
+                        pageCount = tempPdfDocument.numPages;
+                    } catch (e) {
+                        this.logger.warn('Не удалось получить количество страниц PDF', { error: e.message });
+                        pageCount = 0;
+                    }
+                }
+                
                 metadataHtml += `
                             </div>
                             <div class="metadata-page-count">
-                                <strong>Количество страниц:</strong> ${pdfDocument.numPages}
+                                <strong>Количество страниц:</strong> ${pageCount}
                             </div>
                         </div>
                     </details>
@@ -945,7 +1367,7 @@ export class ArchiveRenderer {
                 ${metadataHtml}
                 ${pdfContentHtml}
             `;
-            this.logger.info('PDF контент успешно отображен', { filename: item.filename, operationId });
+            this.logger.info('PDF контент успешно отображен', { filename: item.filename, keywordsCount: pdfKeywords.length, operationId });
         } catch (e) {
             this.logger.logError(e, { operationId });
             try {
@@ -1100,6 +1522,98 @@ export class ArchiveRenderer {
                 this.logger.logError(blobError, { operationId });
                 previewDiv.innerHTML = `<p class="error">Ошибка загрузки файла: ${this.parent.escapeHtml(blobError.message)}</p>`;
             }
+        } finally {
+            this.logger.popOperation();
+        }
+    }
+
+    /**
+     * Отображение описания капсулы в начале архива
+     * @param {Object} capsuleItem - Элемент капсулы
+     * @param {HTMLElement} container - Контейнер для отображения
+     * @returns {Promise<void>}
+     */
+    async renderCapsuleDescription(capsuleItem, container) {
+        const operationId = this.logger.pushOperation('renderCapsuleDescription', { filename: capsuleItem.filename });
+        try {
+            // Создаем элемент для описания капсулы
+            const capsuleElement = document.createElement('div');
+            capsuleElement.className = 'capsule-description';
+            capsuleElement.id = 'capsule-description';
+
+            // Формируем HTML для описания капсулы
+            let capsuleHtml = `
+                <div class="capsule-header">
+                    <h2 class="capsule-title">📦 Описание цифровой капсулы</h2>
+                </div>
+                <div class="capsule-content">
+                    <div class="capsule-info">
+                        <div class="capsule-author">
+                            <strong>Автор капсулы:</strong> 
+                            <span class="author-name">${this.parent.escapeHtml(capsuleItem.author || '')}</span>
+                        </div>
+                        <div class="capsule-date">
+                            <strong>Дата создания:</strong> 
+                            <span class="date-value">${this.parent.escapeHtml(capsuleItem.date || '')}</span>
+                        </div>
+                    </div>
+            `;
+
+            // Пытаемся получить содержимое файла описания капсулы
+            try {
+                const capsuleFile = this.parent.zip.file(capsuleItem.filename);
+                if (capsuleFile) {
+                    const content = await capsuleFile.async('text');
+                    capsuleHtml += `
+                        <div class="capsule-text-content">
+                            <h3>📜 Текстовое описание:</h3>
+                            <pre class="capsule-description-text">${this.parent.escapeHtml(content)}</pre>
+                        </div>
+                    `;
+                } else {
+                    this.logger.warn('Файл описания капсулы не найден в архиве', { 
+                        filename: capsuleItem.filename, 
+                        operationId 
+                    });
+                    capsuleHtml += `
+                        <div class="capsule-error">
+                            <p class="error">⚠️ Файл описания капсулы не найден в архиве</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                this.logger.warn('Не удалось прочитать файл описания капсулы', { 
+                    filename: capsuleItem.filename, 
+                    error: error.message, 
+                    operationId 
+                });
+                capsuleHtml += `
+                    <div class="capsule-error">
+                        <p class="error">⚠️ Не удалось загрузить содержимое описания капсулы: ${this.parent.escapeHtml(error.message)}</p>
+                    </div>
+                `;
+            }
+
+            capsuleHtml += `
+                </div>
+            `;
+
+            capsuleElement.innerHTML = capsuleHtml;
+            container.appendChild(capsuleElement);
+
+            this.logger.debug('Описание капсулы отображено', { 
+                filename: capsuleItem.filename, 
+                author: capsuleItem.author, 
+                date: capsuleItem.date, 
+                operationId 
+            });
+        } catch (error) {
+            this.logger.logError(error, { operationId });
+            // Даже если не удалось отобразить описание капсулы, не прерываем весь процесс
+            this.logger.warn('Не удалось отобразить описание капсулы, продолжаем работу', { 
+                error: error.message, 
+                operationId 
+            });
         } finally {
             this.logger.popOperation();
         }
