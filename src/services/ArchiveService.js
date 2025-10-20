@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import initSevenZip from '7z-wasm?init'; // Используем Vite's WASM initialization с ?init суффиксом
-import JS7z from 'js7z-tools';
+
 
 /**
  * Адаптер для JSZip (закомментирован для отката при необходимости)
@@ -288,9 +288,28 @@ class SevenZipAdapter {
 
     async validateArchive(buffer) {
         try {
-            const adapter = await this.loadArchive(buffer);
-            const files = adapter.extractAllFiles();
-            return Object.keys(files).length > 0;
+            // For 7z validation, we'll use the same approach as loadArchive but with validation only
+            const sevenZip = await initSevenZip();
+            
+            // Create temporary file for validation
+            const archiveName = `validate_${Date.now()}.7z`;
+            sevenZip.FS.writeFile(archiveName, new Uint8Array(buffer));
+            
+            // Try to list the archive contents to validate it
+            sevenZip.FS.mkdir('/validate_list');
+            const result = sevenZip.callMain(['l', archiveName]); // Use 'l' for list only
+            
+            if (result === 0) {
+                // If listing succeeded, try to extract to validate content
+                sevenZip.FS.mkdir('/validate_extract');
+                const extractResult = sevenZip.callMain(['x', '-y', archiveName, '-o/validate_extract']);
+                if (extractResult === 0) {
+                    const contents = sevenZip.FS.readdir('/validate_extract');
+                    const files = contents.filter(item => item !== '.' && item !== '..');
+                    return files.length > 0;
+                }
+            }
+            return false;
         } catch (error) {
             console.warn('Невалидный архив:', error.message);
             return false;
@@ -300,7 +319,9 @@ class SevenZipAdapter {
 
 /**
  * Адаптер для JS7z
+ * Закомментирован из-за проблем с билдом из-за top-level await в js7z-tools
  */
+/*
 class JS7zAdapter {
     constructor() {
         this.js7z = null;
@@ -310,7 +331,8 @@ class JS7zAdapter {
     }
 
     async loadArchive(buffer) {
-        // Загружаем JS7z экземпляр
+        // Динамически загружаем JS7z экземпляр
+        const { default: JS7z } = await import('js7z-tools');
         this.js7z = await JS7z();
         this.fs = this.js7z.FS;
         
@@ -531,6 +553,7 @@ class JS7zAdapter {
         }
     }
 }
+*/
 
 /**
  * Универсальный сервис для работы с архивами
@@ -555,14 +578,16 @@ export class ArchiveService {
                 this.adapter = new SevenZipAdapter();
                 break;
             case ArchiveService.ENGINES.JS7Z:
-                this.adapter = new JS7zAdapter();
-                break;
+                // JS7z engine is commented out due to build issues with top-level await
+                // this.adapter = new JS7zAdapter();
+                // break;
             case ArchiveService.ENGINES.JSZIP:
                 // Для поддержки JSZip при необходимости
                 // this.adapter = new JSZipAdapter();
                 // break;
             default:
-                this.adapter = new JS7zAdapter(); // fallback
+                // fallback to SevenZip
+                this.adapter = new SevenZipAdapter();
                 break;
         }
         return await this.adapter.loadArchive(buffer);
@@ -612,22 +637,43 @@ export class ArchiveService {
     }
 
     async validateArchive(buffer, engine = ArchiveService.ENGINES.SEVEN_ZIP) {
-        let adapter;
         switch (engine) {
             case ArchiveService.ENGINES.SEVEN_ZIP:
-                adapter = new SevenZipAdapter();
-                break;
+                const sevenZipAdapter = new SevenZipAdapter();
+                return await sevenZipAdapter.validateArchive(buffer);
             case ArchiveService.ENGINES.JS7Z:
-                adapter = new JS7zAdapter();
-                break;
+                // JS7z validation is commented out due to build issues with top-level await
+                // const { default: JS7z } = await import('js7z-tools');
+                // const js7z = await JS7z();
+                // const fs = js7z.FS;
+                
+                // const archiveName = `validate_${Date.now()}.tmp`;
+                // fs.writeFile(archiveName, new Uint8Array(buffer));
+                
+                // js7z.FS.mkdir('/validate_extracted');
+                // const result = js7z.callMain(['x', '-y', archiveName, '-o/validate_extracted']);
+                
+                // if (result === 0) {
+                //     const contents = fs.readdir('/validate_extracted');
+                //     const files = contents.filter(item => item !== '.' && item !== '..');
+                //     return files.length > 0;
+                // }
+                // return false;
             case ArchiveService.ENGINES.JSZIP:
-                // adapter = new JSZipAdapter();
-                // break;
+                // For JSZip validation
+                const zip = await JSZip.loadAsync(buffer);
+                const zipFiles = {};
+                for (const [filename, file] of Object.entries(zip.files)) {
+                    if (!file.dir) {
+                        zipFiles[filename] = file;
+                    }
+                }
+                return Object.keys(zipFiles).length > 0;
             default:
-                adapter = new JS7zAdapter(); // fallback
-                break;
+                // fallback to SevenZip
+                const fallbackAdapter = new SevenZipAdapter();
+                return await fallbackAdapter.validateArchive(buffer);
         }
-        return await adapter.validateArchive(buffer);
     }
 
     // Методы для переключения движков

@@ -11,7 +11,6 @@ export default defineConfig({
     minify: 'terser', // максимальная минификация
     sourcemap: true,
     rollupOptions: {
-      external: ['js7z-tools'], // Помечаем как внешнюю зависимость
       output: {
         manualChunks: {
           'pdf-lib': ['pdfjs-dist'],
@@ -39,9 +38,8 @@ export default defineConfig({
   },
   
   // Оптимизация зависимостей
-  optimizeDeps: {
-    include: ['pdfjs-dist', 'jszip', 'paparse', '7z-wasm'],
-    exclude: ['js7z-tools'],
+ optimizeDeps: {
+    include: ['pdfjs-dist', 'jszip', 'paparse', '7z-wasm', 'js7z-tools'],
     esbuildOptions: {
       define: {
         global: 'globalThis',
