@@ -5,9 +5,43 @@ export default defineConfig({
   // Базовый путь для GitHub Pages
   base: './',
   
+  // Настройки сборки
+  build: {
+    outDir: 'dist',
+    minify: 'terser', // максимальная минификация
+    sourcemap: true,
+    rollupOptions: {
+      external: ['js7z-tools'], // Помечаем как внешнюю зависимость
+      output: {
+        manualChunks: {
+          'pdf-lib': ['pdfjs-dist'],
+          'zip-lib': ['jszip'],
+          'csv-lib': ['papaparse'],
+          'wasm-lib': ['7z-wasm']
+        },
+        format: 'es',
+        entryFileNames: `[name].[hash].js`,
+        chunkFileNames: `[name].[hash].js`,
+        assetFileNames: `[name].[hash].[ext]`
+      }
+    },
+    target: 'es2022' // Устанавливаем более современный таргет для поддержки top-level await
+  },
+  
+  // Настройки сервера для разработки
+  server: {
+    port: 3000,
+    open: true,
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin'
+    }
+  },
+  
   // Оптимизация зависимостей
   optimizeDeps: {
-    include: ['pdfjs-dist', 'jszip', 'papaparse'],
+    include: ['pdfjs-dist', 'jszip', 'paparse', '7z-wasm'],
+    exclude: ['js7z-tools'],
     esbuildOptions: {
       define: {
         global: 'globalThis',
@@ -15,38 +49,15 @@ export default defineConfig({
     },
   },
   
-  // Настройки сборки
-  build: {
-    outDir: 'dist',
-    minify: 'terser', // максимальная минификация
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'pdf-lib': ['pdfjs-dist'],
-          'zip-lib': ['jszip'],
-          'csv-lib': ['papaparse']
-        }
-      }
-    }
-  },
-  
-  // Настройки сервера для разработки
-  server: {
-    port: 3000,
-    open: true
-  },
-  
-  // Плагин для поддержки старых браузеров (опционально)
+  // Плагин для поддержки старых браузеров
   plugins: [
     legacy({
       targets: ['defaults', 'not IE 11']
     })
   ],
-  
-  // Обработка worker файлов - корректная настройка для PDF.js
-  worker: {
-    format: 'ife',
-    plugins: () => []
+
+  // Отключаем обработку worker'ов через кастомную конфигурацию
+ worker: {
+    format: 'es'
   }
 });

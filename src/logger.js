@@ -66,14 +66,30 @@ export class Logger {
             message,
             operationId,
             context: {
-                ...context,
-                userAgent: navigator.userAgent,
-                url: window.location.href
+                ...context
             }
         };
 
+        // Добавляем userAgent и URL только для определенных типов сообщений (например, ошибок инициализации)
+        if (this.shouldIncludeMetadata(message, level)) {
+            logEntry.context.userAgent = navigator.userAgent;
+            logEntry.context.url = window.location.href;
+        }
+
         // Вывод в консоль с цветами для разных уровней
         this.outputToConsole(logEntry);
+    }
+
+    // Проверка, нужно ли включать метаданные в лог
+    shouldIncludeMetadata(message, level) {
+        // Включаем метаданные только для критических ошибок и инициализационных сообщений
+        const criticalMessages = [
+            'DigitalTimeCapsule инициализирован',
+            'Ошибка при инициализации',
+            'Ошибка при логировании',
+            'Критическая ошибка'
+        ];
+        return level <= Logger.LOG_LEVELS.WARN || criticalMessages.some(msg => message.includes(msg));
     }
 
     // Вывод в консоль с цветами

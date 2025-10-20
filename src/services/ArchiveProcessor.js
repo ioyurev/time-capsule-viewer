@@ -1,6 +1,7 @@
 /**
  * @typedef {import('../models/ArchiveItem.js').ArchiveItem} ArchiveItem
  * @typedef {import('../models/ValidationError.js').ValidationError} ValidationError
+ * @typedef {import('./ArchiveService.js').ArchiveService} ArchiveService
  */
 
 /**
@@ -8,23 +9,25 @@
  */
 export class ArchiveProcessor {
     /**
-     * Извлекает файлы из ZIP архива
-     * @param {ArrayBuffer} zipBuffer - Буфер ZIP архива
+     * Извлекает файлы из архива
+     * @param {ArrayBuffer} zipBuffer - Буфер архива
      * @returns {Promise<Object>} Объект с файлами и манифестом
      */
     static async extractFiles(zipBuffer) {
-        const zip = await JSZip.loadAsync(zipBuffer);
+        const archiveService = new ArchiveService();
+        await archiveService.loadArchive(zipBuffer);
         const files = {};
+        const allFiles = archiveService.extractAllFiles();
         
         // Извлекаем все файлы
-        for (const [filename, file] of Object.entries(zip.files)) {
-            if (!file.dir) {
+        for (const [filename, file] of Object.entries(allFiles)) {
+            if (!filename.endsWith('/')) { // Не директории
                 files[filename] = file;
             }
         }
         
         return {
-            zip,
+            archiveService,
             files,
             manifest: files['manifest.txt']
         };

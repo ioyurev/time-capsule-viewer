@@ -30,7 +30,7 @@ export class ExplanationValidator {
                 const isMem = itemType === 'МЕМ';
 
                 if (isPersonal || isMem) {
-                    const explanationFile = this.parent.findExplanationFile(item.filename);
+                    const explanationFile = await this.parent.findExplanationFile(item.filename);
                     
                     if (explanationFile) {
                         try {
@@ -165,7 +165,7 @@ export class ExplanationValidator {
                 };
             }
 
-            const explanationFile = this.parent.findExplanationFile(item.filename);
+            const explanationFile = await this.parent.findExplanationFile(item.filename);
             
             if (!explanationFile) {
                 return {

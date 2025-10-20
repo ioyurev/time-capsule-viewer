@@ -637,7 +637,8 @@ export class ArchiveValidator {
             // Формирование списка файлов с индикацией тегов и слов в объяснениях
             if (validationFilesListElement) {
                 let filesHtml = '<h4>Файлы в архиве:</h4>';
-                items.forEach((item, index) => {
+                for (let index = 0; index < items.length; index++) {
+                    const item = items[index];
                     const isPdf = item.filename.toLowerCase().endsWith('.pdf');
                     const isPdfNews = isPdf && item.type.toUpperCase() === 'НОВОСТЬ';
                     const isPdfPersonal = isPdf && item.type.toUpperCase() === 'ЛИЧНОЕ';
@@ -648,7 +649,7 @@ export class ArchiveValidator {
                     
                     // Пропускаем файл КАПСУЛА в детальном списке, так как он не требует тегов
                     if (isCapsule) {
-                        return; // Пропускаем этот элемент в детальном списке
+                        continue; // Пропускаем этот элемент в детальном списке
                     }
                     
                     let tagCount, requiredTags, hasValidTags;
@@ -691,7 +692,7 @@ export class ArchiveValidator {
                     let explanationFile = null;
                     
                     if (isPersonal || isMem) {
-                        explanationFile = this.parent.findExplanationFile(item.filename);
+                        explanationFile = await this.parent.findExplanationFile(item.filename);
                         if (explanationFile) {
                             // Получаем текст файла объяснения и считаем слова
                             // Это асинхронная операция, но для отображения в синхронной функции
@@ -752,7 +753,7 @@ export class ArchiveValidator {
                             </div>
                         </div>
                     `;
-                });
+                }
                 validationFilesListElement.innerHTML = filesHtml;
                 
                 // Асинхронно обновляем информацию о словах в объяснениях
@@ -844,7 +845,7 @@ export class ArchiveValidator {
                 const isMem = itemType === 'МЕМ';
 
                 if (isPersonal || isMem) {
-                    const explanationFile = this.parent.findExplanationFile(item.filename);
+                    const explanationFile = await this.parent.findExplanationFile(item.filename);
                     
                     if (explanationFile) {
                         try {

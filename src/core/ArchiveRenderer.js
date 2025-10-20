@@ -35,7 +35,7 @@ export class ArchiveRenderer {
             this.logger.debug('Начало отображения архива', { operationId });
 
             // Чтение манифеста
-            const manifestFile = this.parent.zip.file('manifest.txt');
+            const manifestFile = await this.parent.archiveService.extractFile('manifest.txt');
             if (!manifestFile) {
                 const error = new Error('Файл manifest.txt не найден в архиве');
                 this.logger.error('Манифест не найден', { error: error.message, operationId });
@@ -128,7 +128,7 @@ export class ArchiveRenderer {
             // Извлекаем метаданные для всех PDF файлов параллельно
             const pdfPromises = pdfItems.map(async (item) => {
                 try {
-                    const pdfFile = this.parent.zip.file(item.filename);
+                    const pdfFile = await this.parent.archiveService.extractFile(item.filename);
                     if (!pdfFile) {
                         this.logger.warn('PDF файл не найден в архиве', { filename: item.filename, operationId });
                         return;
@@ -350,7 +350,7 @@ export class ArchiveRenderer {
             let displayDescription = item.description;
 
             if (isPdf) {
-                const pdfFile = this.parent.zip.file(item.filename);
+                const pdfFile = await this.parent.archiveService.extractFile(item.filename);
                 if (pdfFile) {
                     try {
                         const arrayBuffer = await pdfFile.async('arraybuffer');
@@ -383,7 +383,7 @@ export class ArchiveRenderer {
             const isPersonal = item.type.toUpperCase() === 'ЛИЧНОЕ';
             let explanationFile = null;
             if (isMem || isPersonal) {
-                explanationFile = this.parent.findExplanationFile(item.filename);
+                explanationFile = await this.parent.findExplanationFile(item.filename);
             }
 
             let explanationHtml = '';
@@ -404,7 +404,7 @@ export class ArchiveRenderer {
 
             // Для PDF файлов используем специальное отображение метаданных
             if (isPdf) {
-                const pdfFile = this.parent.zip.file(item.filename);
+                const pdfFile = await this.parent.archiveService.extractFile(item.filename);
                 if (pdfFile) {
                     try {
                         const arrayBuffer = await pdfFile.async('arraybuffer');
@@ -576,17 +576,19 @@ export class ArchiveRenderer {
                 let url = '';
 
                 if (isImage) {
-                    const imageFile = this.parent.zip.file(item.filename);
+                    const imageFile = await this.parent.archiveService.extractFile(item.filename);
                     if (imageFile) {
                         const uint8Array = await imageFile.async('uint8array');
-                        const blob = new Blob([uint8Array], { type: `image/${fileExtension}` });
+                        // Для WebP и других изображений используем правильный MIME тип
+                        const imageType = fileExtension === 'webp' ? 'image/webp' : `image/${fileExtension}`;
+                        const blob = new Blob([uint8Array], { type: imageType });
                         url = URL.createObjectURL(blob);
                         this.parent.urlManager.addUrl(url, 'image'); // Сохраняем для очистки
 
                         contentHtml = `<img src="${url}" alt="${this.parent.escapeHtml(displayTitle)}" loading="lazy">`;
                     }
                 } else if (isVideo) {
-                    const videoFile = this.parent.zip.file(item.filename);
+                    const videoFile = await this.parent.archiveService.extractFile(item.filename);
                     if (videoFile) {
                         const uint8Array = await videoFile.async('uint8array');
                         const blob = new Blob([uint8Array], { type: 'video/mp4' }); // Для упрощения используем mp4
@@ -601,7 +603,7 @@ export class ArchiveRenderer {
                         `;
                     }
                 } else if (isAudio) {
-                    const audioFile = this.parent.zip.file(item.filename);
+                    const audioFile = await this.parent.archiveService.extractFile(item.filename);
                     if (audioFile) {
                         const uint8Array = await audioFile.async('uint8array');
                         const blob = new Blob([uint8Array], { type: 'audio/mpeg' }); // Для упрощения используем mp3
@@ -616,7 +618,7 @@ export class ArchiveRenderer {
                         `;
                     }
                 } else if (isCsv) {
-                    const csvFile = this.parent.zip.file(item.filename);
+                    const csvFile = await this.parent.archiveService.extractFile(item.filename);
                     if (csvFile) {
                         const textContent = await csvFile.async('text');
                         const Papa = await import('papaparse'); // Динамический импорт
@@ -650,14 +652,14 @@ export class ArchiveRenderer {
                         }
                     }
                 } else if (isText) {
-                    const textFile = this.parent.zip.file(item.filename);
+                    const textFile = await this.parent.archiveService.extractFile(item.filename);
                     if (textFile) {
                         const textContent = await textFile.async('text');
                         contentHtml = `<pre class="text-content">${this.parent.escapeHtml(textContent)}</pre>`;
                     }
                 } else {
                     // Для других типов файлов создаем ссылку для скачивания
-                    const defaultFile = this.parent.zip.file(item.filename);
+                    const defaultFile = await this.parent.archiveService.extractFile(item.filename);
                     if (defaultFile) {
                         const uint8Array = await defaultFile.async('uint8array');
                         const blob = new Blob([uint8Array]);
@@ -798,7 +800,7 @@ export class ArchiveRenderer {
 
             this.logger.debug('Начало загрузки контента файла', { filename: item.filename, operationId });
             
-            const file = this.parent.zip.file(item.filename);
+            const file = await this.parent.archiveService.extractFile(item.filename);
             if (!file) {
                 this.logger.warn('Файл не найден в архиве', { filename: item.filename, operationId });
                 previewDiv.innerHTML = '<p class="error">Файл не найден в архиве</p>';
@@ -816,6 +818,7 @@ export class ArchiveRenderer {
                 case 'png':
                 case 'gif':
                 case 'svg':
+                case 'webp':
                     await this.handleImageFile(file, item, previewDiv, operationId);
                     break;
                     
@@ -874,12 +877,21 @@ export class ArchiveRenderer {
 
             this.logger.debug('Начало загрузки файла объяснения', { operationId });
 
+            if (!explanationFile) {
+                this.logger.warn('Файл объяснения не найден', { previewId, operationId });
+                previewDiv.innerHTML = '<p class="error">Файл объяснения не найден</p>';
+                return;
+            }
+
             const text = await explanationFile.async('text');
             previewDiv.innerHTML = `<pre class="text-content explanation-text">${this.parent.escapeHtml(text)}</pre>`;
             this.logger.debug('Файл объяснения загружен и отображен', { textLength: text.length, operationId });
         } catch (error) {
             this.logger.logError(error, { operationId });
-            previewDiv.innerHTML = `<p class="error">Ошибка загрузки объяснения: ${this.parent.escapeHtml(error.message)}</p>`;
+            const previewDiv = document.getElementById(previewId); // Get previewDiv again in catch block
+            if (previewDiv) {
+                previewDiv.innerHTML = `<p class="error">Ошибка загрузки объяснения: ${this.parent.escapeHtml(error.message)}</p>`;
+            }
         } finally {
             this.logger.popOperation();
         }
@@ -889,10 +901,6 @@ export class ArchiveRenderer {
     async handleImageFile(file, item, previewDiv, parentOperationId = null) {
         const operationId = this.logger.pushOperation('handleImageFile', { filename: item.filename, parentOperationId });
         try {
-            // Получаем данные изображения
-            const imageData = await file.async('base64');
-            const imageUrl = `data:image/${item.filename.split('.').pop()};base64,${imageData}`;
-            
             // Извлекаем метаданные изображения
             const uint8Array = await file.async('uint8array');
             const metadata = await ImageService.extractMetadata(uint8Array);
@@ -955,6 +963,11 @@ export class ArchiveRenderer {
                     </details>
                 `;
             }
+
+            // Создаем URL для изображения из uint8array
+            const blob = new Blob([uint8Array], { type: `image/${item.filename.split('.').pop()}` });
+            const imageUrl = URL.createObjectURL(blob);
+            this.parent.urlManager.addUrl(imageUrl, 'image');
 
             // Формируем HTML для отображения изображения и метаданных
             const imageContentHtml = `
@@ -1498,18 +1511,21 @@ export class ArchiveRenderer {
     async handleDefaultFile(file, item, previewDiv, parentOperationId = null) {
         const operationId = this.logger.pushOperation('handleDefaultFile', { filename: item.filename, parentOperationId });
         try {
-            const fileData = await file.async('base64');
-            const fileUrl = `data:application/octet-stream;base64,${fileData}`;
+            // Резервный метод - используем blob вместо base64
+            const blob = await file.async('blob');
+            const url = URL.createObjectURL(blob);
             previewDiv.innerHTML = `
-                <a href="${this.parent.escapeHtml(fileUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
+                <a href="${this.parent.escapeHtml(url)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                     📥 Скачать файл (${this.parent.escapeHtml(item.filename)})
                 </a>
             `;
-            this.logger.debug('Файл по умолчанию обработан через base64', { filename: item.filename, operationId });
+            this.parent.urlManager.addUrl(url, 'default');
+            this.logger.debug('Файл по умолчанию обработан через blob', { filename: item.filename, operationId });
         } catch (e) {
             this.logger.debug('Ошибка при обработке файла по умолчанию, пробуем резервный метод', { error: e.message, operationId });
             try {
-                const blob = await file.async('blob');
+                const uint8Array = await file.async('uint8array');
+                const blob = new Blob([uint8Array]);
                 const url = URL.createObjectURL(blob);
                 previewDiv.innerHTML = `
                     <a href="${this.parent.escapeHtml(url)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
@@ -1517,7 +1533,7 @@ export class ArchiveRenderer {
                     </a>
                 `;
                 this.parent.urlManager.addUrl(url, 'default');
-                this.logger.debug('Файл по умолчанию обработан через blob', { filename: item.filename, operationId });
+                this.logger.debug('Файл по умолчанию обработан через uint8array', { filename: item.filename, operationId });
             } catch (blobError) {
                 this.logger.logError(blobError, { operationId });
                 previewDiv.innerHTML = `<p class="error">Ошибка загрузки файла: ${this.parent.escapeHtml(blobError.message)}</p>`;
@@ -1561,7 +1577,7 @@ export class ArchiveRenderer {
 
             // Пытаемся получить содержимое файла описания капсулы
             try {
-                const capsuleFile = this.parent.zip.file(capsuleItem.filename);
+                const capsuleFile = await this.parent.archiveService.extractFile(capsuleItem.filename);
                 if (capsuleFile) {
                     const content = await capsuleFile.async('text');
                     capsuleHtml += `

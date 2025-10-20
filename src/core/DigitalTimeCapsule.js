@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { ArchiveService } from '../services/ArchiveService.js';
 import { logger } from '../logger.js';
 import { ArchiveValidator } from './ArchiveValidator.js';
 import { ArchiveRenderer } from './ArchiveRenderer.js';
@@ -126,7 +126,7 @@ export class DigitalTimeCapsule {
      * @param {string} memFilename - Имя файла мема
      * @returns {Object|null} - Файл объяснения или null
      */
-    findExplanationFile(memFilename) {
+    async findExplanationFile(memFilename) {
         return this.navigation.findExplanationFile(memFilename);
     }
 
@@ -240,16 +240,16 @@ export class DigitalTimeCapsule {
             const arrayBuffer = await file.arrayBuffer();
             this.logger.debug('ZIP файл прочитан в ArrayBuffer', { size: arrayBuffer.byteLength, operationId });
 
-            // Создаем экземпляр JSZip
-            this.zip = new JSZip();
-            this.logger.debug('Начало распаковки ZIP архива', { operationId });
+            // Создаем экземпляр ArchiveService
+            this.archiveService = new ArchiveService();
+            this.logger.debug('Начало загрузки архива через ArchiveService', { operationId });
 
             // Загружаем архив
-            await this.zip.loadAsync(arrayBuffer);
-            this.logger.info('ZIP архив успешно загружен', { operationId });
+            await this.archiveService.loadArchive(arrayBuffer);
+            this.logger.info('Архив успешно загружен', { operationId });
 
             // Проверяем наличие манифеста
-            const manifestFile = this.zip.file('manifest.txt');
+            const manifestFile = await this.archiveService.extractFile('manifest.txt');
             if (!manifestFile) {
                 const error = new Error('Файл manifest.txt не найден в архиве');
                 this.logger.error('Манифест не найден', { error: error.message, operationId });
