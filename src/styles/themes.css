@@ -644,14 +644,6 @@ body[data-theme="light"] .upload-label {
     color: var(--text-primary);
 }
 
-body[data-theme="dark"] .upload-help {
-    color: var(--text-tertiary);
-}
-
-body[data-theme="light"] .upload-help {
-    color: var(--text-tertiary);
-}
-
 /* Темизация элементов контента */
 body[data-theme="dark"] .content-details summary {
     background: var(--bg-tertiary);

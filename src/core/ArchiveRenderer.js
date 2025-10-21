@@ -419,52 +419,13 @@ export class ArchiveRenderer {
                         // Показываем метаданные только для не-ЛИЧНОЕ типов PDF файлов
                         if (metadata && metadata.info && item.type.toUpperCase() !== 'ЛИЧНОЕ') {
                             const info = metadata.info;
-                            pdfMetadataHtml = `
-                                <details class="pdf-metadata-details">
-                                    <summary class="pdf-metadata-summary" aria-label="Показать метаданные PDF файла ${this.parent.escapeHtml(displayTitle)}">
-                                        📄 Метаданные PDF
-                                    </summary>
-                                    <div class="pdf-metadata-content">
-                                        <div class="metadata-grid">
-                            `;
-
-                            if (info.Title) {
-                                pdfMetadataHtml += `
-                                    <strong class="metadata-field-main">Заголовок:</strong>
-                                    <span>${this.parent.escapeHtml(info.Title)}</span>
-                                `;
-                            }
-                            if (info.Author) {
-                                pdfMetadataHtml += `
-                                    <strong class="metadata-field-main">Автор:</strong>
-                                    <span>${this.parent.escapeHtml(info.Author)}</span>
-                                `;
-                            }
-                            if (info.Subject) {
-                                pdfMetadataHtml += `
-                                    <strong class="metadata-field-main">Тема:</strong>
-                                    <span>${this.parent.escapeHtml(info.Subject)}</span>
-                                `;
-                            }
-                            if (info.Keywords) {
-                                pdfMetadataHtml += `
-                                    <strong class="metadata-field-main">Ключевые слова:</strong>
-                                    <span>${this.parent.escapeHtml(info.Keywords)}</span>
-                                `;
-                            }
-
+                            
                             // Получаем количество страниц из кэша метаданных
                             const cachedMetadata = pdfMetadataCache.getMetadata(item.filename);
                             const pageCount = cachedMetadata?.pageCount || 0;
-
-                            pdfMetadataHtml += `
-                                        </div>
-                                        <div class="metadata-page-count">
-                                            <strong>Количество страниц:</strong> ${pageCount}
-                                        </div>
-                                    </div>
-                                </details>
-                            `;
+                            
+                            // Убираем отображение PDF метаданных - оставляем только количество страниц для внутреннего использования
+                            // pdfMetadataHtml остается пустым, чтобы не отображать метаданные в UI
                         }
 
                         // Создаем URL для PDF
@@ -488,9 +449,11 @@ export class ArchiveRenderer {
                             </details>
                         `;
 
-                        // Для PDF файлов используем теги из кэша метаданных для не-ЛИЧНОЕ типов, и из манифеста для ЛИЧНОЕ типов
+                        // Для PDF файлов используем теги из кэша метаданных для не-ЛИЧНОЕ типов, из манифеста для ЛИЧНОЕ типов
                         // Важно: item.tags уже включает ключевые слова из PDF, извлеченные в extractPdfMetadataEarly
                         let tagsHtml = '';
+                        let authorHtml = '';
+                        
                         if (item.type.toUpperCase() === 'ЛИЧНОЕ') {
                             // Для ЛИЧНОЕ типов используем теги из манифеста (не извлекаем из PDF)
                             tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
@@ -499,6 +462,14 @@ export class ArchiveRenderer {
                             // Убедимся, что теги не пустые и не содержат только пробелы
                             const validTags = item.tags.filter(tag => tag && tag.trim() !== '');
                             tagsHtml = validTags.length > 0 ? validTags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : '';
+                            
+                            // Для НОВОСТЬ типов добавляем автора из PDF метаданных как отдельный span
+                            if (item.type.toUpperCase() === 'НОВОСТЬ' && isPdf) {
+                                const cachedMetadata = pdfMetadataCache.getMetadata(item.filename);
+                                if (cachedMetadata && cachedMetadata.author && cachedMetadata.author.trim() !== '') {
+                                    authorHtml = `<span class="title-author">${this.parent.escapeHtml(cachedMetadata.author)}</span>`;
+                                }
+                            }
                         }
 
                         itemElement.innerHTML = `
@@ -508,7 +479,7 @@ export class ArchiveRenderer {
                                     <div class="item-type">${this.parent.escapeHtml(item.type)}</div>
                                     <div class="item-date">${this.parent.escapeHtml(item.date)}</div>
                                 </div>
-                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${tagsHtml}</h3>
+                                <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${authorHtml} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
                             <div class="content-preview content-preview-margin-top" id="${previewId}">
@@ -1219,119 +1190,6 @@ export class ArchiveRenderer {
             // Показываем метаданные только для не-ЛИЧНОЕ типов PDF файлов
             if (metadata && metadata.info && item.type.toUpperCase() !== 'ЛИЧНОЕ') {
                 const info = metadata.info;
-                this.logger.debug('Обработка метаданных PDF', { metadataKeys: Object.keys(info), operationId });
-                metadataHtml = `
-                    <details class="pdf-metadata-details">
-                        <summary class="pdf-metadata-summary" aria-label="Показать метаданные PDF файла ${this.parent.escapeHtml(item.title)}">
-                            📄 Метаданные PDF
-                        </summary>
-                        <div class="pdf-metadata-content">
-                            <div class="metadata-grid">
-                `;
-                
-                if (info.Title) {
-                    this.logger.debug('Заголовок PDF', { title: info.Title, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-main">Заголовок:</strong>
-                        <span>${this.parent.escapeHtml(info.Title)}</span>
-                    `;
-                }
-                if (info.Author) {
-                    this.logger.debug('Автор PDF', { author: info.Author, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-main">Автор:</strong>
-                        <span>${this.parent.escapeHtml(info.Author)}</span>
-                    `;
-                }
-                if (info.Subject) {
-                    this.logger.debug('Тема PDF', { subject: info.Subject, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-main">Тема:</strong>
-                        <span>${this.parent.escapeHtml(info.Subject)}</span>
-                    `;
-                }
-                if (info.Keywords) {
-                    this.logger.debug('Ключевые слова PDF', { keywords: info.Keywords, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-main">Ключевые слова:</strong>
-                        <span>${this.parent.escapeHtml(info.Keywords)}</span>
-                    `;
-                } else if (pdfKeywords.length > 0) {
-                    // Показываем ключевые слова из PDFService если нет в метаданных документа
-                    metadataHtml += `
-                        <strong class="metadata-field-main">Ключевые слова:</strong>
-                        <span>${this.parent.escapeHtml(pdfKeywords.join(', '))}</span>
-                    `;
-                }
-                if (info.CreationDate) {
-                    const creationDate = this.parsePdfDate(info.CreationDate);
-                    if (creationDate && !isNaN(creationDate.getTime())) {
-                        this.logger.debug('Дата создания PDF', { creationDate: creationDate.toISOString(), operationId });
-                        metadataHtml += `
-                            <strong class="metadata-field-secondary">Дата создания:</strong>
-                            <span class="metadata-field-secondary">${creationDate.toLocaleString('ru-RU', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                timeZoneName: 'short'
-                            })}</span>
-                        `;
-                    } else {
-                        this.logger.warn('Некорректная дата создания PDF', { rawDate: info.CreationDate, operationId });
-                        metadataHtml += `
-                            <strong class="metadata-field-secondary">Дата создания:</strong>
-                            <span class="metadata-field-secondary">${this.parent.escapeHtml(info.CreationDate)}</span>
-                        `;
-                    }
-                }
-                if (info.ModDate) {
-                    const modDate = this.parsePdfDate(info.ModDate);
-                    if (modDate && !isNaN(modDate.getTime())) {
-                        this.logger.debug('Дата изменения PDF', { modDate: modDate.toISOString(), operationId });
-                        metadataHtml += `
-                            <strong class="metadata-field-secondary">Дата изменения:</strong>
-                            <span class="metadata-field-secondary">${modDate.toLocaleString('ru-RU', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                timeZoneName: 'short'
-                            })}</span>
-                        `;
-                    } else {
-                        this.logger.warn('Некорректная дата изменения PDF', { rawDate: info.ModDate, operationId });
-                        metadataHtml += `
-                            <strong class="metadata-field-secondary">Дата изменения:</strong>
-                            <span class="metadata-field-secondary">${this.parent.escapeHtml(info.ModDate)}</span>
-                        `;
-                    }
-                }
-                if (info.Creator) {
-                    this.logger.debug('Создано PDF', { creator: info.Creator, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-secondary">Создано:</strong>
-                        <span class="metadata-field-secondary">${this.parent.escapeHtml(info.Creator)}</span>
-                    `;
-                }
-                if (info.Producer) {
-                    this.logger.debug('Обработано PDF', { producer: info.Producer, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-secondary">Обработано:</strong>
-                        <span class="metadata-field-secondary">${this.parent.escapeHtml(info.Producer)}</span>
-                    `;
-                }
-                if (info.PDFFormatVersion) {
-                    this.logger.debug('Версия PDF', { version: info.PDFFormatVersion, operationId });
-                    metadataHtml += `
-                        <strong class="metadata-field-secondary">Версия PDF:</strong>
-                        <span class="metadata-field-secondary">${this.parent.escapeHtml(info.PDFFormatVersion)}</span>
-                    `;
-                }
                 
                 // Получаем количество страниц из кэша или из PDF документа
                 let pageCount = 0;
@@ -1350,14 +1208,8 @@ export class ArchiveRenderer {
                     }
                 }
                 
-                metadataHtml += `
-                            </div>
-                            <div class="metadata-page-count">
-                                <strong>Количество страниц:</strong> ${pageCount}
-                            </div>
-                        </div>
-                    </details>
-                `;
+                // Убираем отображение PDF метаданных - оставляем только количество страниц для внутреннего использования
+                // metadataHtml остается пустым, чтобы не отображать метаданные в UI
             }
             
             // Создаем отдельный спойлер для PDF содержимого
