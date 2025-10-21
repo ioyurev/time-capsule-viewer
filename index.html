@@ -41,18 +41,32 @@
                         📁 Загрузка архива
                     </summary>
                     <div class="upload-container">
-                        <label for="zipUpload" class="upload-label">
-                            📁 Выберите ZIP-архив для загрузки:
-                        </label>
+                        
+                        <!-- Drag and drop area -->
+                        <div class="upload-drag-area" id="uploadDragArea">
+                            <p>Перетащите ZIP-файл сюда или нажмите для выбора</p>
+                            <small>Поддерживаются ZIP-файлы с манифестом в формате manifest.txt</small>
+                        </div>
+                        
+                        <!-- Hidden file input -->
                         <input type="file" 
                                id="zipUpload" 
                                name="zipUpload"
                                accept=".zip"
                                class="upload-input"
                                aria-describedby="upload-help">
+                       
                         <p id="upload-help" class="upload-help">
                             Поддерживаются ZIP-файлы с манифестом в формате manifest.txt
                         </p>
+                        
+                        <!-- File preview -->
+                        <div class="upload-file-preview" id="uploadFilePreview">
+                            <div class="upload-file-info">
+                                <span class="upload-file-name" id="uploadFileName">Файл не выбран</span>
+                                <span class="upload-file-size" id="uploadFileSize"></span>
+                            </div>
+                        </div>
                         
                         <!-- Прогресс бар загрузки -->
                         <div id="upload-progress" class="upload-progress-container" style="display: none;">

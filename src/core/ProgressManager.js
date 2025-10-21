@@ -70,8 +70,8 @@ export class ProgressManager {
         const clampedPercentage = Math.min(100, Math.max(0, percentage));
         const roundedPercentage = Math.round(clampedPercentage);
 
-        // Устанавливаем CSS переменную для ширины
-        progressBar.style.setProperty('--progress-width', `${roundedPercentage}%`);
+        // Устанавливаем ширину напрямую
+        progressBar.style.width = `${roundedPercentage}%`;
 
         // Обновляем data-атрибуты для отслеживания состояния
         progressBar.setAttribute('data-progress', roundedPercentage);

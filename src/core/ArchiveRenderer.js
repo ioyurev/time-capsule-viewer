@@ -391,11 +391,11 @@ export class ArchiveRenderer {
                 const explanationPreviewId = `explanation-${index}`;
                 const explanationTitle = isMem ? 'мема' : 'личного достижения';
                 explanationHtml = `
-                    <details class="content-details explanation-details" style="margin-top: 15px;">
+                    <details class="content-details explanation-details explanation-details-margin-top">
                         <summary aria-label="Показать объяснение ${explanationTitle} ${this.parent.escapeHtml(displayTitle)}">
                             💡 Объяснение ${explanationTitle}
                         </summary>
-                        <div class="content-preview" id="${explanationPreviewId}" style="margin-top: 10px;">
+                        <div class="content-preview content-preview-margin-top" id="${explanationPreviewId}">
                             <div class="loading">Загрузка объяснения...</div>
                         </div>
                     </details>
@@ -511,7 +511,7 @@ export class ArchiveRenderer {
                                 <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
-                            <div class="content-preview" id="${previewId}" style="margin-top: 10px;">
+                            <div class="content-preview content-preview-margin-top" id="${previewId}">
                                 ${pdfMetadataHtml}
                                 ${pdfContentHtml}
                             </div>
@@ -558,9 +558,9 @@ export class ArchiveRenderer {
                                 <summary aria-label="Показать содержимое файла ${this.parent.escapeHtml(displayTitle)}">
                                     👁 Показать содержимое файла
                                 </summary>
-                                <div class="content-preview" id="${previewId}" style="margin-top: 10px;">
+                                <div class="content-preview content-preview-margin-top" id="${previewId}">
                                     <iframe class="pdf-viewer" src="${url}"></iframe>
-                                    <div style="margin-top: 10px;">
+                                    <div class="pdf-download-section">
                                         <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                                             📥 Скачать PDF
                                         </a>
@@ -597,7 +597,7 @@ export class ArchiveRenderer {
                         this.parent.urlManager.addUrl(url, 'video'); // Сохраняем для очистки
 
                         contentHtml = `
-                            <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                            <video controls preload="metadata" class="video-full-width">
                                 <source src="${url}" type="video/mp4">
                                 Ваш браузер не поддерживает видео.
                             </video>
@@ -612,7 +612,7 @@ export class ArchiveRenderer {
                         this.parent.urlManager.addUrl(url, 'audio'); // Сохраняем для очистки
 
                         contentHtml = `
-                            <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                            <video controls preload="metadata" class="audio-full-width">
                                 <source src="${url}" type="audio/mpeg">
                                 Ваш браузер не поддерживает аудио.
                             </video>
@@ -689,7 +689,7 @@ export class ArchiveRenderer {
                         <summary aria-label="Показать содержимое файла ${this.parent.escapeHtml(displayTitle)}">
                             👁 Показать содержимое файла
                         </summary>
-                        <div class="content-preview" id="${previewId}" style="margin-top: 10px;">
+                        <div class="content-preview content-preview-margin-top" id="${previewId}">
                             ${contentHtml}
                         </div>
                     </details>
@@ -977,7 +977,7 @@ export class ArchiveRenderer {
                         👁 Просмотр изображения
                     </summary>
                     <div class="image-content-content">
-                        <img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy" style="max-width: 100%; height: auto; display: block; margin: 10px 0;">
+                        <img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy" class="image-full-width">
                         <div class="image-download-section">
                             <a href="${this.parent.escapeHtml(imageUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                                 📥 Скачать изображение
@@ -1029,7 +1029,7 @@ export class ArchiveRenderer {
             videoMimeType = mimeTypes[videoMimeType.split('/')[1]] || videoMimeType;
             
             previewDiv.innerHTML = `
-                <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                <video controls preload="metadata" class="video-full-width">
                     <source src="${this.parent.escapeHtml(videoUrl)}" type="${this.parent.escapeHtml(videoMimeType)}">
                     Ваш браузер не поддерживает видео.
                 </video>
@@ -1065,7 +1065,7 @@ export class ArchiveRenderer {
             
             // Используем video элемент для аудио файлов, так как он лучше работает
             previewDiv.innerHTML = `
-                <video controls preload="metadata" style="width: 100%; max-width: 800px; height: auto; margin: 10px 0; display: block;">
+                <video controls preload="metadata" class="audio-full-width">
                     <source src="${this.parent.escapeHtml(audioUrl)}" type="${this.parent.escapeHtml(audioMimeType)}">
                     Ваш браузер не поддерживает аудио.
                 </video>
@@ -1391,7 +1391,7 @@ export class ArchiveRenderer {
                 this.logger.debug('Используется резервный метод с blob URL', { operationId });
                 previewDiv.innerHTML = `
                     <iframe class="pdf-viewer" src="${this.parent.escapeHtml(pdfUrl)}"></iframe>
-                    <div style="margin-top: 10px;">
+                    <div class="download-section-margin-top">
                         <a href="${this.parent.escapeHtml(pdfUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                             📥 Скачать PDF
                         </a>
@@ -1404,7 +1404,7 @@ export class ArchiveRenderer {
                 // Финальный резервный метод - только ссылка для скачивания
                 previewDiv.innerHTML = `
                     <p class="error">Не удалось отобразить PDF. <a href="#" onclick="event.preventDefault(); alert('PDF не может быть отображен в этом браузере. Пожалуйста, скачайте файл для просмотра.')" class="download-link">ℹ️ Информация о проблеме</a></p>
-                    <div style="margin-top: 10px;">
+                    <div class="download-section-margin-top">
                         <a href="${this.parent.escapeHtml(URL.createObjectURL(await file.async('blob')))}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
                             📥 Скачать PDF
                         </a>

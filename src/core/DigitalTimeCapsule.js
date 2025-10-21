@@ -110,6 +110,7 @@ export class DigitalTimeCapsule {
         const operationId = this.logger.pushOperation('initializeEventListeners');
         try {
             const uploadInput = document.getElementById('zipUpload');
+            const uploadDragArea = document.getElementById('uploadDragArea');
             const themeToggle = document.getElementById('theme-toggle');
             
             if (uploadInput) {
@@ -122,6 +123,11 @@ export class DigitalTimeCapsule {
                         .catch(error => this.showError(`Ошибка загрузки: ${error.message}`));
                 });
                 this.logger.debug('Обработчик загрузки ZIP файла добавлен');
+            }
+
+            // Инициализация drag and drop функциональности
+            if (uploadDragArea) {
+                this.initializeDragAndDrop(uploadDragArea, uploadInput);
             }
 
             // Обработчик переключения темы
@@ -149,6 +155,120 @@ export class DigitalTimeCapsule {
         } finally {
             this.logger.popOperation();
         }
+    }
+
+    /**
+     * Инициализация drag and drop функциональности
+     * @param {HTMLElement} dragArea - Элемент области перетаскивания
+     * @param {HTMLInputElement} fileInput - Элемент input для файлов
+     */
+    initializeDragAndDrop(dragArea, fileInput) {
+        // Обработчики событий drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, this.preventDefaults, false);
+            document.body.addEventListener(eventName, this.preventDefaults, false);
+        });
+
+        // Обработчики для области перетаскивания
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dragArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dragArea.classList.add('drag-over');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dragArea.classList.remove('drag-over');
+            }, false);
+        });
+
+        // Обработка сброса файла
+        dragArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.handleFileDrop(files[0], fileInput);
+            }
+        }, false);
+
+        // Клик по области перетаскивания открывает выбор файла
+        dragArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Обновление при выборе файла через input
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.updateFilePreview(e.target.files[0]);
+            }
+        });
+    }
+
+    /**
+     * Предотвращение действий по умолчанию для drag and drop
+     * @param {Event} e - Событие
+     */
+    preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    /**
+     * Обработка сброшенного файла
+     * @param {File} file - Сброшенный файл
+     * @param {HTMLInputElement} fileInput - Элемент input для файлов
+     */
+    handleFileDrop(file, fileInput) {
+        // Проверка типа файла
+        if (file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip')) {
+            // Создаем DataTransfer объект и добавляем файл
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Симулируем событие изменения
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+            
+            // Обновляем превью файла
+            this.updateFilePreview(file);
+        } else {
+            this.showError('Пожалуйста, выберите ZIP-файл');
+        }
+    }
+
+    /**
+     * Обновление превью выбранного файла
+     * @param {File} file - Выбранный файл
+     */
+    updateFilePreview(file) {
+        const filePreview = document.getElementById('uploadFilePreview');
+        const fileNameElement = document.getElementById('uploadFileName');
+        const fileSizeElement = document.getElementById('uploadFileSize');
+
+        if (filePreview && fileNameElement && fileSizeElement) {
+            // Обновляем информацию о файле
+            fileNameElement.textContent = file.name;
+            fileSizeElement.textContent = this.formatFileSize(file.size);
+            
+            // Показываем превью файла
+            filePreview.classList.add('show');
+        }
+    }
+
+    /**
+     * Форматирование размера файла
+     * @param {number} bytes - Размер в байтах
+     * @returns {string} - Форматированный размер
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     /**
@@ -187,8 +307,7 @@ export class DigitalTimeCapsule {
 
         // Обновляем прогресс через прямое манипулирование DOM
         if (uploadProgressBar) {
-            // Обновляем прогресс через CSS переменную
-            uploadProgressBar.style.setProperty('--progress-width', `${progress}%`);
+            uploadProgressBar.style.width = `${progress}%`;
             uploadProgressBar.setAttribute('data-progress', progress);
         }
 

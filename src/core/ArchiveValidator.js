@@ -678,9 +678,40 @@ export class ArchiveValidator {
                 capsuleStatusElement.textContent = hasCapsuleDescription ? '✅' : '❌';
             }
 
+            // Получаем список всех файлов в архиве для проверки соответствия
+            const archiveFiles = await this.parent.archiveService.getFileList();
+            const manifestFilenames = items.map(item => item.filename.toLowerCase());
+            const extraFiles = archiveFiles.filter(file => !manifestFilenames.includes(file.toLowerCase()));
+            const missingFiles = manifestFilenames.filter(manifestFile => !archiveFiles.some(archiveFile => archiveFile.toLowerCase() === manifestFile.toLowerCase()));
+
             // Формирование списка файлов с индикацией тегов и слов в объяснениях
             if (validationFilesListElement) {
                 let filesHtml = '<h4>Файлы в архиве:</h4>';
+                
+                // Добавляем информацию о несоответствии файлов
+                if (extraFiles.length > 0 || missingFiles.length > 0) {
+                    filesHtml += '<div class="validation-consistency-section">';
+                    filesHtml += '<h5>Проверка соответствия файлов:</h5>';
+                    
+                    if (extraFiles.length > 0) {
+                        filesHtml += `<div class="validation-extra-files"><strong>Лишние файлы в архиве (не указаны в манифесте):</strong><br>`;
+                        extraFiles.forEach(file => {
+                            filesHtml += `<span class="extra-file-badge">📁 ${this.parent.escapeHtml(file)}</span> `;
+                        });
+                        filesHtml += '</div>';
+                    }
+                    
+                    if (missingFiles.length > 0) {
+                        filesHtml += `<div class="validation-missing-files"><strong>Отсутствующие файлы (указаны в манифесте, но нет в архиве):</strong><br>`;
+                        missingFiles.forEach(file => {
+                            filesHtml += `<span class="missing-file-badge">📄 ${this.parent.escapeHtml(file)}</span> `;
+                        });
+                        filesHtml += '</div>';
+                    }
+                    
+                    filesHtml += '</div>';
+                }
+
                 for (let index = 0; index < items.length; index++) {
                     const item = items[index];
                     const isPdf = item.filename.toLowerCase().endsWith('.pdf');
@@ -756,7 +787,7 @@ export class ArchiveValidator {
                                     <span>Слова:</span>
                                     <span class="word-count-placeholder">Загрузка...</span>
                                     <div class="validation-file-words-progress-bar">
-                                        <div class="validation-file-words-progress-fill" style="--progress-width: 0%;"></div>
+                                    <div class="validation-file-words-progress-fill" style="width: 0%;"></div>
                                     </div>
                                     <span class="validation-file-words-status">⏳</span>
                                 </div>
@@ -767,7 +798,7 @@ export class ArchiveValidator {
                                     <span>Слова:</span>
                                     <span class="word-count-placeholder">Нет файла</span>
                                     <div class="validation-file-words-progress-bar">
-                                        <div class="validation-file-words-progress-fill" style="--progress-width: 0%;"></div>
+                                    <div class="validation-file-words-progress-fill" style="width: 0%;"></div>
                                     </div>
                                     <span class="validation-file-words-status">❌</span>
                                 </div>
@@ -786,7 +817,7 @@ export class ArchiveValidator {
                                     <span>Теги:</span>
                                     <span>${tagCount}/${requiredTags}</span>
                                     <div class="validation-file-tags-progress-bar">
-                                        <div class="validation-file-tags-progress-fill" style="--progress-width: ${progressPercentage}%;"></div>
+                                        <div class="validation-file-tags-progress-fill" style="width: ${progressPercentage}%;"></div>
                                     </div>
                                     <span class="validation-file-status">${tagStatus}</span>
                                     ${!hasValidTags ? 
@@ -919,7 +950,7 @@ export class ArchiveValidator {
                                 const statusSpan = wordsProgressElement.querySelector('.validation-file-words-status');
 
                                 if (wordCountSpan) wordCountSpan.textContent = `${wordCount}/${requiredWords}`;
-                                if (progressBarFill) progressBarFill.style.setProperty('--progress-width', `${progressPercentage}%`);
+                                if (progressBarFill) progressBarFill.style.width = `${progressPercentage}%`;
                                 if (statusSpan) statusSpan.textContent = isValid ? '✅' : '❌';
                                 
                                 // Добавляем класс для индикации валидности

@@ -1,102 +1,249 @@
-/* CSS Custom Properties для темизации */
+/* Base CSS Variables and Styles */
 :root {
-    /* Цвета основные */
-    --color-primary: #3498db;
-    --color-secondary: #2c3e50;
-    --color-accent: #667eea;
-    --color-accent-secondary: #764ba2;
-    --color-success: #4caf50;
-    --color-warning: #ff9800;
-    --color-danger: #f44336;
-    --color-info: #2196f3;
-    
-    /* Цвета фона */
-    --bg-primary: #f5f5f5;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #ffffff;
-    --bg-card: #ffffff;
-    --bg-sidebar: #ffffff;
-    --bg-validation: #f8f9fa;
-    --bg-upload: #f8f9fa;
-    
-    /* Цвета текста */
-    --text-primary: #2c3e50;
-    --text-secondary: #34495e;
-    --text-tertiary: #6c757d;
-    --text-light: #e0e0e0;
-    --text-dark: #2c3e50;
-    --text-accent: #3498db;
-    --text-warning: #856404;
-    --text-danger: #721c24;
-    --text-success: #155724;
-    
-    /* Цвета границ */
-    --border-primary: #e0e0e0;
-    --border-secondary: #dee2e6;
-    --border-tertiary: #eee;
-    --border-upload: #dee2e6;
-    --border-validation: #dee2e6;
-    
-    /* Цвета прогресс-баров */
-    --progress-success: linear-gradient(90deg, #4caf50, #8bc34a);
-    --progress-warning: linear-gradient(90deg, #ff9800, #ffc107);
-    --progress-danger: linear-gradient(90deg, #f44336, #ff5722);
-    --progress-bg: #e0e0e0;
-    --progress-general-bg: rgba(255, 255, 255, 0.3);
-    
-    /* Размеры и отступы */
-    --container-max-width: 1400px;
-    --container-padding: 20px;
-    --sidebar-width: 25%;
-    --main-content-width: 75%;
-    --border-radius: 12px;
-    --border-radius-sm: 8px;
-    --border-radius-xs: 4px;
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.15);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
-    --transition-fast: 0.2s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
+  /* Primary Color Palette (Blue) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+ --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  /* Secondary Color Palette (Gray) */
+  --color-secondary-50: #f9fafb;
+  --color-secondary-100: #f3f4f6;
+  --color-secondary-200: #e5e7eb;
+  --color-secondary-300: #d1d5db;
+  --color-secondary-400: #9ca3af;
+  --color-secondary-500: #6b7280;
+  --color-secondary-600: #4b5563;
+  --color-secondary-700: #374151;
+  --color-secondary-800: #1f2937;
+  --color-secondary-900: #111827;
+  
+  /* Success Color Palette (Green) */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+  
+  /* Warning Color Palette (Amber) */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  
+  /* Danger Color Palette (Red) */
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+  
+ /* Info Color Palette (Blue) */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-info-800: #075985;
+  --color-info-900: #0c4a6e;
+  
+  /* Accent Color Palette */
+  --color-accent-50: #f0f5ff;
+  --color-accent-100: #e0ebff;
+  --color-accent-200: #c7d2fe;
+  --color-accent-300: #a5b4fc;
+  --color-accent-400: #818cf8;
+  --color-accent-500: #6366f1;
+  --color-accent-600: #4f46e5;
+  --color-accent-700: #4338ca;
+  --color-accent-800: #3730a3;
+  --color-accent-900: #312e81;
+  
+ /* Semantic Color Variables */
+  --color-primary: var(--color-primary-500);
+  --color-primary-hover: var(--color-primary-600);
+  --color-primary-active: var(--color-primary-700);
+  --color-primary-light: var(--color-primary-100);
+  --color-primary-dark: var(--color-primary-700);
+  
+  --color-secondary: var(--color-secondary-500);
+  --color-secondary-hover: var(--color-secondary-600);
+  --color-secondary-active: var(--color-secondary-700);
+  --color-secondary-light: var(--color-secondary-100);
+  --color-secondary-dark: var(--color-secondary-700);
+  
+  --color-success: var(--color-success-500);
+  --color-success-hover: var(--color-success-600);
+  --color-success-active: var(--color-success-700);
+  --color-success-light: var(--color-success-100);
+  --color-success-dark: var(--color-success-700);
+  
+  --color-warning: var(--color-warning-500);
+ --color-warning-hover: var(--color-warning-600);
+  --color-warning-active: var(--color-warning-700);
+  --color-warning-light: var(--color-warning-100);
+  --color-warning-dark: var(--color-warning-700);
+  
+  --color-danger: var(--color-danger-500);
+  --color-danger-hover: var(--color-danger-600);
+  --color-danger-active: var(--color-danger-700);
+  --color-danger-light: var(--color-danger-100);
+  --color-danger-dark: var(--color-danger-700);
+  
+  --color-info: var(--color-info-500);
+  --color-info-hover: var(--color-info-600);
+  --color-info-active: var(--color-info-700);
+  --color-info-light: var(--color-info-100);
+  --color-info-dark: var(--color-info-700);
+  
+  --color-accent: var(--color-accent-500);
+  --color-accent-hover: var(--color-accent-600);
+  --color-accent-active: var(--color-accent-700);
+  --color-accent-secondary: var(--color-accent-600);
+  
+  /* Background Colors */
+  --bg-primary: var(--color-secondary-50);
+  --bg-secondary: var(--color-secondary-100);
+  --bg-tertiary: var(--color-secondary-200);
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-validation: var(--color-secondary-100);
+  --bg-upload: var(--color-secondary-100);
+  --bg-validation-error: var(--color-danger-50);
+  --bg-validation-warning: var(--color-warning-50);
+  --bg-validation-info: var(--color-info-50);
+  --bg-validation-success: var(--color-success-50);
+  --bg-highlight: var(--color-primary-50);
+  --bg-highlight-dark: var(--color-primary-100);
+  
+  /* Text Colors */
+  --text-primary: var(--color-secondary-900);
+  --text-secondary: var(--color-secondary-700);
+  --text-tertiary: var(--color-secondary-500);
+  --text-light: #ffffff;
+  --text-dark: var(--color-secondary-900);
+  --text-accent: var(--color-primary-600);
+  --text-warning: var(--color-warning-800);
+  --text-danger: var(--color-danger-800);
+  --text-success: var(--color-success-800);
+  --text-info: var(--color-info-800);
+  --text-muted: var(--color-secondary-500);
+  --text-placeholder: var(--color-secondary-400);
+  
+  /* Border Colors */
+  --border-primary: var(--color-secondary-300);
+  --border-secondary: var(--color-secondary-400);
+  --border-tertiary: var(--color-secondary-200);
+  --border-upload: var(--color-secondary-300);
+  --border-validation: var(--color-secondary-300);
+  --border-error: var(--color-danger-300);
+  --border-warning: var(--color-warning-300);
+  --border-success: var(--color-success-300);
+  --border-info: var(--color-info-300);
+  
+  /* Progress Bar Colors */
+  --progress-success: linear-gradient(90deg, var(--color-success-500), var(--color-success-600));
+  --progress-warning: linear-gradient(90deg, var(--color-warning-500), var(--color-warning-600));
+  --progress-danger: linear-gradient(90deg, var(--color-danger-500), var(--color-danger-600));
+  --progress-bg: var(--color-secondary-200);
+  --progress-general-bg: rgba(255, 255, 255, 0.3);
+  --progress-success-color: var(--color-success-500);
+  --progress-warning-color: var(--color-warning-500);
+  --progress-danger-color: var(--color-danger-500);
+  
+  /* Layout Variables */
+  --container-max-width: 1400px;
+  --container-padding: 20px;
+  --sidebar-width: 25%;
+  --main-content-width: 75%;
+  --border-radius: 12px;
+ --border-radius-sm: 8px;
+  --border-radius-xs: 4px;
+  --border-radius-full: 50%;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.15);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+  --shadow-xl: 0 12px 48px rgba(0,0,0,0.25);
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-ease: 0.3s ease;
+  --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-/* Темная тема переменные */
+/* Dark Theme Variables */
 body[data-theme="dark"] {
-    --color-primary: #4a90e2;
-    --color-secondary: #3d3d3d;
-    --color-accent: #667eea;
-    --color-accent-secondary: #764ba2;
-    --color-success: #4caf50;
-    --color-warning: #ff9800;
-    --color-danger: #f44336;
-    --color-info: #2196f3;
-    
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #2d2d2d;
-    --bg-tertiary: #3d3d3d;
-    --bg-card: #2d2d2d;
-    --bg-sidebar: #2d2d2d;
-    --bg-validation: #3d3d3d;
-    --bg-upload: #2a2a2a;
-    
-    --text-primary: #e0e0e0;
-    --text-secondary: #cccccc;
-    --text-tertiary: #aaaaaa;
-    --text-light: #e0e0e0;
-    --text-dark: #ffffff;
-    --text-accent: #4a90e2;
-    --text-warning: #fff3cd;
-    --text-danger: #f8d7da;
-    --text-success: #d4edda;
-    
-    --border-primary: #404040;
-    --border-secondary: #555555;
-    --border-tertiary: #555555;
-    --border-upload: #555555;
-    --border-validation: #555555;
-    
-    --progress-bg: #555555;
-    --progress-general-bg: rgba(255, 255, 255, 0.1);
+  /* Background Colors */
+  --bg-primary: var(--color-secondary-900);
+  --bg-secondary: var(--color-secondary-800);
+  --bg-tertiary: var(--color-secondary-700);
+  --bg-card: var(--color-secondary-800);
+  --bg-sidebar: var(--color-secondary-800);
+  --bg-validation: var(--color-secondary-800);
+  --bg-upload: var(--color-secondary-800);
+  --bg-validation-error: var(--color-danger-900);
+  --bg-validation-warning: var(--color-warning-900);
+  --bg-validation-info: var(--color-info-900);
+  --bg-validation-success: var(--color-success-900);
+  --bg-highlight: var(--color-primary-900);
+  --bg-highlight-dark: var(--color-primary-800);
+  
+  /* Text Colors */
+  --text-primary: var(--color-secondary-100);
+  --text-secondary: var(--color-secondary-300);
+  --text-tertiary: var(--color-secondary-400);
+  --text-light: var(--color-secondary-100);
+  --text-dark: var(--color-secondary-50);
+  --text-accent: var(--color-primary-300);
+  --text-warning: var(--color-warning-300);
+  --text-danger: var(--color-danger-300);
+  --text-success: var(--color-success-300);
+  --text-info: var(--color-info-300);
+  --text-muted: var(--color-secondary-500);
+  --text-placeholder: var(--color-secondary-600);
+  
+  /* Border Colors */
+  --border-primary: var(--color-secondary-700);
+  --border-secondary: var(--color-secondary-600);
+  --border-tertiary: var(--color-secondary-700);
+  --border-upload: var(--color-secondary-700);
+  --border-validation: var(--color-secondary-700);
+  --border-error: var(--color-danger-700);
+  --border-warning: var(--color-warning-700);
+  --border-success: var(--color-success-700);
+  --border-info: var(--color-info-700);
+  
+  /* Progress Bar Colors */
+  --progress-bg: var(--color-secondary-700);
+  --progress-general-bg: rgba(255, 255, 255, 0.1);
+  --progress-success-color: var(--color-success-400);
+  --progress-warning-color: var(--color-warning-400);
+  --progress-danger-color: var(--color-danger-400);
 }
 
 /* CSS Reset и базовые стили */

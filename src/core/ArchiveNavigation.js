@@ -71,9 +71,9 @@ export class ArchiveNavigation {
                         if (targetElement) {
                             targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             // Добавляем подсветку к элементу
-                            targetElement.style.backgroundColor = '#e3f2fd';
+                            targetElement.classList.add('archive-item-highlight');
                             setTimeout(() => {
-                                targetElement.style.backgroundColor = '';
+                                targetElement.classList.remove('archive-item-highlight');
                             }, 200);
                         }
                     });
