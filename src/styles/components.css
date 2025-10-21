@@ -1653,24 +1653,97 @@ audio {
     to { transform: rotate(360deg); }
 }
 
-/* Стили для статуса загрузки */
-.upload-status {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: var(--border-radius-xs);
+/* Стили для прогресс бара загрузки */
+.upload-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.upload-progress-text {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    min-width: 150px;
+}
+
+.upload-progress-bar-container {
+    flex: 1;
+    height: 8px;
+    background-color: var(--progress-bg);
+    border-radius: 4px;
+    margin: 0 0.5rem;
+    overflow: hidden;
+    position: relative;
+    min-width: 150px;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background: var(--progress-success);
+    border-radius: 4px;
+    transition: width var(--transition-normal), background var(--transition-normal);
+    width: var(--progress-width, 0%);
+    min-width: 0%;
+}
+
+.upload-progress-count {
+    font-size: 0.8rem;
     font-weight: bold;
+    color: var(--text-primary);
+    min-width: 30px;
+    text-align: center;
 }
 
-.upload-status.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+/* Прогресс бар загрузки в секции загрузки */
+#upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-secondary);
 }
 
-.upload-status.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+#upload-progress .upload-progress-text {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    min-width: 180px;
+    font-weight: 500;
+}
+
+#upload-progress .upload-progress-bar-container {
+    flex: 1;
+    height: 10px;
+    background-color: var(--progress-bg);
+    border-radius: 5px;
+    margin: 0 0.5rem;
+    overflow: hidden;
+    position: relative;
+    min-width: 150px;
+}
+
+#upload-progress .upload-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    border-radius: 5px;
+    transition: width var(--transition-normal);
+    width: var(--progress-width, 0%);
+    min-width: 0%;
+}
+
+#upload-progress .upload-progress-count {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    min-width: 40px;
+    text-align: center;
+    background: var(--bg-card);
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-secondary);
 }
 
 /* Глобальный статус загрузки */
@@ -1690,21 +1763,21 @@ audio {
     background-color: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
-    display: block;
+    display: block !important;
 }
 
 #global-upload-status.error {
     background-color: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
-    display: block;
+    display: block !important;
 }
 
 #global-upload-status.loading {
     background-color: #d1ecf1;
     color: #0c5460;
     border: 1px solid #bee5eb;
-    display: block;
+    display: block !important;
     position: relative;
     padding-left: 2.5rem;
 }
@@ -1713,41 +1786,6 @@ audio {
     content: "⏳";
     position: absolute;
     left: 0.75rem;
-    animation: spin 1s linear infinite;
-}
-
-/* Стили для статуса загрузки */
-.upload-status {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: var(--border-radius-xs);
-    font-weight: bold;
-}
-
-.upload-status.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.upload-status.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.upload-status.loading {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-    position: relative;
-    padding-left: 2rem;
-}
-
-.upload-status.loading::before {
-    content: "⏳";
-    position: absolute;
-    left: 0.5rem;
     animation: spin 1s linear infinite;
 }
 

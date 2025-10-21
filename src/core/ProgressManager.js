@@ -22,13 +22,16 @@ export class ProgressManager {
         if (typeof document === 'undefined') return;
         
         // Инициализируем все прогресс бары с 0% значением
-        const progressBars = document.querySelectorAll('.progress-bar, .general-progress-bar, .validation-progress-bar');
+        const progressBars = document.querySelectorAll('.progress-bar, .general-progress-bar, .validation-progress-bar, .upload-progress-bar');
         progressBars.forEach((progressBar, index) => {
             const id = progressBar.id || `progress-bar-${index}`;
             if (!progressBar.id) {
                 progressBar.id = id;
             }
-            this.setProgress(id, 0);
+            // Проверяем, что элемент имеет ID перед установкой прогресса
+            if (progressBar.id) {
+                this.setProgress(progressBar.id, 0);
+            }
         });
         this.initialized = true;
     }

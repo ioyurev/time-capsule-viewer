@@ -119,9 +119,10 @@ class JSZipAdapter {
  * Адаптер для 7z-wasm
  */
 class SevenZipAdapter {
-    constructor() {
+    constructor(onProgress = null) {
         this.sevenZip = null;
         this.loaded = false;
+        this.onProgress = onProgress;
     }
 
     async loadArchive(buffer) {
@@ -134,12 +135,68 @@ class SevenZipAdapter {
             const archiveName = `archive_${Date.now()}.7z`;
             this.sevenZip.FS.writeFile(archiveName, new Uint8Array(buffer));
             
-            // Извлекаем архив
+            // Сначала получаем список файлов для отслеживания прогресса
+            let totalFiles = 0;
+            if (this.onProgress) {
+                try {
+                    // Получаем список файлов в архиве
+                    this.sevenZip.FS.mkdir('/list_temp');
+                    const listResult = this.sevenZip.callMain(['l', archiveName]);
+                    
+                    if (listResult === 0) {
+                        // Читаем список файлов для определения общего количества файлов
+                        const listOutput = this.sevenZip.FS.readdir('/list_temp');
+                        // Получаем содержимое списка файлов для подсчета
+                        const listFile = '/list_temp/list.txt';
+                        try {
+                            this.sevenZip.FS.writeFile(listFile, '');
+                            const listContent = this.sevenZip.FS.readFile(listFile, { encoding: 'utf8' });
+                            // Подсчитываем файлы в архиве (это может потребовать дополнительной обработки)
+                            // Пока устанавливаем начальный прогресс
+                            this.onProgress(0);
+                        } catch (readError) {
+                            // Если не можем прочитать список, просто отправляем 0%
+                            this.onProgress(0);
+                        }
+                    }
+                } catch (listError) {
+                    console.warn('Could not get file list for progress tracking:', listError.message);
+                    this.onProgress(0);
+                }
+            }
+
+            // Извлекаем архив с отслеживанием прогресса
             this.sevenZip.FS.mkdir('/extracted');
-            const result = this.sevenZip.callMain(['x', '-y', archiveName, '-o/extracted']);
             
-            if (result !== 0) {
-                throw new Error(`7z extraction failed with code: ${result}`);
+            // Для более точного отслеживания прогресса, мы будем использовать таймер
+            // чтобы отправлять промежуточные обновления, так как 7z-wasm не предоставляет
+            // встроенный механизм отслеживания прогресса
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (this.onProgress && progress < 95) {
+                    progress += 2; // Увеличиваем прогресс на 2% каждые 100ms для более плавного обновления
+                    this.onProgress(progress);
+                }
+            }, 100); // Обновляем прогресс каждые 100ms
+
+            try {
+                const result = this.sevenZip.callMain(['x', '-y', archiveName, '-o/extracted']);
+                
+                if (result !== 0) {
+                    throw new Error(`7z extraction failed with code: ${result}`);
+                }
+            } finally {
+                // Останавливаем интервал прогресса
+                clearInterval(progressInterval);
+                // Убедимся, что отправляем 100% в конце, если не достигли
+                if (this.onProgress && progress < 100) {
+                    this.onProgress(100);
+                }
+            }
+
+            // Отправляем 100% прогресс после завершения
+            if (this.onProgress) {
+                this.onProgress(100);
             }
             
             return this;
@@ -295,6 +352,11 @@ class SevenZipAdapter {
             const archiveName = `validate_${Date.now()}.7z`;
             sevenZip.FS.writeFile(archiveName, new Uint8Array(buffer));
             
+            // Send progress if callback is provided
+            if (this.onProgress) {
+                this.onProgress(0);
+            }
+
             // Try to list the archive contents to validate it
             sevenZip.FS.mkdir('/validate_list');
             const result = sevenZip.callMain(['l', archiveName]); // Use 'l' for list only
@@ -306,9 +368,21 @@ class SevenZipAdapter {
                 if (extractResult === 0) {
                     const contents = sevenZip.FS.readdir('/validate_extract');
                     const files = contents.filter(item => item !== '.' && item !== '..');
+                    
+                    // Send progress if callback is provided
+                    if (this.onProgress) {
+                        this.onProgress(100);
+                    }
+                    
                     return files.length > 0;
                 }
             }
+
+            // Send progress if callback is provided
+            if (this.onProgress) {
+                this.onProgress(100);
+            }
+
             return false;
         } catch (error) {
             console.warn('Невалидный архив:', error.message);
@@ -572,10 +646,10 @@ export class ArchiveService {
         };
     }
 
-    async loadArchive(buffer, engine = ArchiveService.ENGINES.SEVEN_ZIP) {
+    async loadArchive(buffer, engine = ArchiveService.ENGINES.SEVEN_ZIP, onProgress = null) {
         switch (engine) {
             case ArchiveService.ENGINES.SEVEN_ZIP:
-                this.adapter = new SevenZipAdapter();
+                this.adapter = new SevenZipAdapter(onProgress);
                 break;
             case ArchiveService.ENGINES.JS7Z:
                 // JS7z engine is commented out due to build issues with top-level await
@@ -587,7 +661,7 @@ export class ArchiveService {
                 // break;
             default:
                 // fallback to SevenZip
-                this.adapter = new SevenZipAdapter();
+                this.adapter = new SevenZipAdapter(onProgress);
                 break;
         }
         return await this.adapter.loadArchive(buffer);
@@ -636,10 +710,10 @@ export class ArchiveService {
         return await this.adapter.extractBinaryFile(filename);
     }
 
-    async validateArchive(buffer, engine = ArchiveService.ENGINES.SEVEN_ZIP) {
+    async validateArchive(buffer, engine = ArchiveService.ENGINES.SEVEN_ZIP, onProgress = null) {
         switch (engine) {
             case ArchiveService.ENGINES.SEVEN_ZIP:
-                const sevenZipAdapter = new SevenZipAdapter();
+                const sevenZipAdapter = new SevenZipAdapter(onProgress);
                 return await sevenZipAdapter.validateArchive(buffer);
             case ArchiveService.ENGINES.JS7Z:
                 // JS7z validation is commented out due to build issues with top-level await
@@ -671,7 +745,7 @@ export class ArchiveService {
                 return Object.keys(zipFiles).length > 0;
             default:
                 // fallback to SevenZip
-                const fallbackAdapter = new SevenZipAdapter();
+                const fallbackAdapter = new SevenZipAdapter(onProgress);
                 return await fallbackAdapter.validateArchive(buffer);
         }
     }

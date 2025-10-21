@@ -531,7 +531,12 @@ export class ArchiveValidator {
             let totalFiles = items.length;
             let nonPdfFiles = 0; // Количество файлов, не являющихся PDF (для проверки тегов)
 
-            items.forEach((item, index) => {
+            // Обновляем прогресс - начало подсчета файлов (40-50%)
+            this.updateValidationProgress(40, 'Анализ файлов...');
+            await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
+
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
                 const itemType = item.type.toUpperCase();
                 const isPdf = item.filename.toLowerCase().endsWith('.pdf');
                 
@@ -579,11 +584,26 @@ export class ArchiveValidator {
                         }
                     }
                 }
-            });
+
+                // Обновляем прогресс каждые 10 файлов
+                if ((index + 1) % Math.max(1, Math.floor(items.length / 10)) === 0) {
+                    const progress = 40 + Math.round(((index + 1) / items.length) * 20); // 40-60% для подсчета файлов
+                    this.updateValidationProgress(progress, `Анализ файлов... (${index + 1}/${items.length})`);
+                    await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
+                }
+            }
+
+            // Обновляем прогресс - завершение подсчета файлов (60%)
+            this.updateValidationProgress(60, 'Проверка объяснений...');
+            await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
 
             // Валидация файлов объяснений
             const explanationResults = await this.explanationValidator.validateExplanationFiles(items);
             const { validPersonalExplanations, validMemeExplanations } = explanationResults;
+
+            // Обновляем прогресс - завершение проверки объяснений (65%)
+            this.updateValidationProgress(65, 'Обновление интерфейса...');
+            await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
 
             // Обновление счетчиков
             if (newsCountElement) newsCountElement.textContent = `${newsCount}/5`;
@@ -753,8 +773,19 @@ export class ArchiveValidator {
                             </div>
                         </div>
                     `;
+                    
+                    // Обновляем прогресс каждые 5 файлов при генерации HTML
+                    if ((index + 1) % Math.max(1, Math.floor(items.length / 5)) === 0) {
+                        const progress = 65 + Math.round(((index + 1) / items.length) * 25); // 65-90% для генерации HTML
+                        this.updateValidationProgress(progress, `Подготовка отчета... (${index + 1}/${items.length})`);
+                        await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
+                    }
                 }
                 validationFilesListElement.innerHTML = filesHtml;
+                
+                // Обновляем прогресс - завершение генерации списка (90%)
+                this.updateValidationProgress(90, 'Завершение валидации...');
+                await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
                 
                 // Асинхронно обновляем информацию о словах в объяснениях
                 this.updateExplanationWordCounts(items, validationFilesListElement);
@@ -915,6 +946,17 @@ export class ArchiveValidator {
             this.logger.logError(error, { operationId });
         } finally {
             this.logger.popOperation();
+        }
+    }
+
+    /**
+     * Обновление прогресса валидации через родительский класс
+     * @param {number} progress - Процент прогресса
+     * @param {string} text - Текст прогресса
+     */
+    updateValidationProgress(progress, text) {
+        if (this.parent && this.parent.updateUploadProgress) {
+            this.parent.updateUploadProgress(text, progress);
         }
     }
 }

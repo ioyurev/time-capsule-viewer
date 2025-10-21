@@ -26,7 +26,15 @@
     <main class="main-content">
         <div class="container">
             <div class="main-content-wrapper">
-                <div id="global-upload-status" class="upload-status" role="status" aria-live="polite"></div>
+                <div id="global-upload-status" class="upload-status" role="status" aria-live="polite">
+                    <div class="upload-progress-container" id="upload-progress-container">
+                        <span class="upload-progress-text" id="upload-progress-text">Загрузка и распаковка архива...</span>
+                        <div class="upload-progress-bar-container">
+                            <div class="progress-bar upload-progress-bar" id="upload-progress-bar"></div>
+                        </div>
+                        <span class="upload-progress-count" id="upload-progress-count">0%</span>
+                    </div>
+                </div>
                 
                 <details class="upload-section-details" id="upload-section-details" open>
                     <summary class="upload-section-summary">
@@ -45,6 +53,15 @@
                         <p id="upload-help" class="upload-help">
                             Поддерживаются ZIP-файлы с манифестом в формате manifest.txt
                         </p>
+                        
+                        <!-- Прогресс бар загрузки -->
+                        <div id="upload-progress" class="upload-progress-container" style="display: none;">
+                            <span class="upload-progress-text" id="upload-progress-text">Загрузка и распаковка архива...</span>
+                            <div class="upload-progress-bar-container">
+                                <div class="progress-bar upload-progress-bar" id="upload-progress-bar"></div>
+                            </div>
+                            <span class="upload-progress-count" id="upload-progress-count">0%</span>
+                        </div>
                     </div>
                 </details>
 
