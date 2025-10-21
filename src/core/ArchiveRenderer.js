@@ -402,6 +402,7 @@ export class ArchiveRenderer {
                 `;
             }
 
+
             // Для PDF файлов используем специальное отображение метаданных
             if (isPdf) {
                 const pdfFile = await this.parent.archiveService.extractFile(item.filename);

@@ -75,8 +75,8 @@ export class ArchiveValidator {
                 const isPdf = parts[0].toLowerCase().endsWith('.pdf');
                 
                 // Проверяем минимальное количество полей в зависимости от типа файла
-                // Для ЛИЧНОЕ и МЕМ разрешаем 5 полей, для КАПСУЛА - 4 поля, для остальных не-PDF - 6+
-                const isPersonalOrMem = !isPdf && parts.length === 5 && this.sanitizeString(parts[1]).toUpperCase().match(/^(ЛИЧНОЕ|МЕМ)$/);
+                // Для ЛИЧНОЕ и МЕМ разрешаем 5 полей (теперь и для PDF), для КАПСУЛА - 4 поля, для остальных не-PDF - 6+
+                const isPersonalOrMem = parts.length === 5 && this.sanitizeString(parts[1]).toUpperCase().match(/^(ЛИЧНОЕ|МЕМ)$/);
                 const isCapsule = !isPdf && parts.length === 4 && this.sanitizeString(parts[1]).toUpperCase() === 'КАПСУЛА';
                 if ((isPdf && parts.length >= 3) || isPersonalOrMem || isCapsule || (!isPdf && parts.length >= 6)) {
                     let itemConfig;
@@ -581,6 +581,30 @@ export class ArchiveValidator {
                         // Для других типов: требуется 5 тегов
                         if (item.getTagCount() >= 5) {
                             filesWithValidKeywords++;
+                        }
+                    }
+                }
+
+                // Для файлов объяснений (включая TXT как личные достижения) проверяем наличие и валидность объяснений
+                if (item.type.toUpperCase() === 'ЛИЧНОЕ' || item.type.toUpperCase() === 'МЕМ') {
+                    const explanationFile = await this.parent.findExplanationFile(item.filename);
+                    if (explanationFile) {
+                        try {
+                            const text = await explanationFile.async('text');
+                            const wordCount = this.explanationValidator.countWords(text);
+                            const requiredWords = item.type.toUpperCase() === 'ЛИЧНОЕ' ? 100 : 50;
+                            if (wordCount >= requiredWords) {
+                                // Увеличиваем счетчик валидных объяснений
+                                if (item.type.toUpperCase() === 'ЛИЧНОЕ') {
+                                    // Для личных достижений увеличиваем соответствующий счетчик валидации
+                                    // Это будет обработано в explanationResults, но мы можем добавить логику здесь
+                                }
+                            }
+                        } catch (error) {
+                            this.logger.warn('Не удалось прочитать файл объяснения для валидации', { 
+                                filename: item.filename, 
+                                error: error.message 
+                            });
                         }
                     }
                 }

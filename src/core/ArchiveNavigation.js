@@ -119,7 +119,12 @@ export class ArchiveNavigation {
                 `${baseName}_explanation.txt`,
                 `${baseName}_info.txt`,
                 `${baseName}_description.txt`,
-                `${baseName}_details.txt`
+                `${baseName}_details.txt`,
+                `${baseName}_explanation.TXT`, // Добавляем регистронезависимые варианты
+                `${baseName}_объяснение.TXT`,
+                `${baseName}_info.TXT`,
+                `${baseName}_description.TXT`,
+                `${baseName}_details.TXT`
             ];
             
             this.logger.debug('Поиск по точному совпадению', { exactMatchNames, operationId });
