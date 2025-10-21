@@ -681,7 +681,48 @@ export class ArchiveValidator {
             // Получаем список всех файлов в архиве для проверки соответствия
             const archiveFiles = await this.parent.archiveService.getFileList();
             const manifestFilenames = items.map(item => item.filename.toLowerCase());
-            const extraFiles = archiveFiles.filter(file => !manifestFilenames.includes(file.toLowerCase()));
+            
+            // Идентифицируем файлы объяснений для MEM и ЛИЧНОЕ элементов
+            const explanationFiles = [];
+            const memAndPersonalItems = items.filter(item => 
+                item.type.toUpperCase() === 'МЕМ' || item.type.toUpperCase() === 'ЛИЧНОЕ'
+            );
+            
+            for (const item of memAndPersonalItems) {
+                const baseName = item.filename.replace(/\.[^/.]+$/, "").toLowerCase(); // Удаляем расширение
+                const possibleExplanationNames = [
+                    `${baseName}_объяснение.txt`,
+                    `${baseName}_explanation.txt`,
+                    `${baseName}_info.txt`,
+                    `${baseName}_description.txt`,
+                    `${baseName}_details.txt`,
+                    `${baseName}_объяснение.TXT`,
+                    `${baseName}_explanation.TXT`,
+                    `${baseName}_info.TXT`,
+                    `${baseName}_description.TXT`,
+                    `${baseName}_details.TXT`
+                ];
+                
+                for (const explanationName of possibleExplanationNames) {
+                    const foundFile = archiveFiles.find(file => file.toLowerCase() === explanationName.toLowerCase());
+                    if (foundFile) {
+                        explanationFiles.push(foundFile.toLowerCase());
+                    }
+                }
+            }
+            
+            // Исключаем manifest.txt и файлы объяснений из extra files
+            const excludedFiles = new Set([
+                'manifest.txt',
+                ...explanationFiles
+            ]);
+            
+            const extraFiles = archiveFiles.filter(file => {
+                const fileLower = file.toLowerCase();
+                // Исключаем файлы, которые есть в манифесте, файлы объяснений и manifest.txt
+                return !manifestFilenames.includes(fileLower) && !excludedFiles.has(fileLower);
+            });
+            
             const missingFiles = manifestFilenames.filter(manifestFile => !archiveFiles.some(archiveFile => archiveFile.toLowerCase() === manifestFile.toLowerCase()));
 
             // Формирование списка файлов с индикацией тегов и слов в объяснениях
