@@ -508,6 +508,58 @@ export class ArchiveValidator {
     async validateArchive(items) {
         const operationId = this.logger.pushOperation('validateArchive', { itemsCount: items.length });
         try {
+            // Получаем список всех файлов в архиве для проверки соответствия
+            const archiveFiles = await this.parent.archiveService.getFileList();
+            const manifestFilenames = items.map(item => item.filename.toLowerCase());
+            
+            // Идентифицируем файлы объяснений для MEM и ЛИЧНОЕ элементов
+            const explanationFiles = [];
+            const memAndPersonalItems = items.filter(item => 
+                item.type.toUpperCase() === 'МЕМ' || item.type.toUpperCase() === 'ЛИЧНОЕ'
+            );
+            
+            for (const item of memAndPersonalItems) {
+                const baseName = item.filename.replace(/\.[^/.]+$/, "").toLowerCase(); // Удаляем расширение
+                const possibleExplanationNames = [
+                    `${baseName}_объяснение.txt`,
+                    `${baseName}_explanation.txt`,
+                    `${baseName}_info.txt`,
+                    `${baseName}_description.txt`,
+                    `${baseName}_details.txt`,
+                    `${baseName}_объяснение.TXT`,
+                    `${baseName}_explanation.TXT`,
+                    `${baseName}_info.TXT`,
+                    `${baseName}_description.TXT`,
+                    `${baseName}_details.TXT`
+                ];
+                
+                for (const explanationName of possibleExplanationNames) {
+                    const foundFile = archiveFiles.find(file => file.toLowerCase() === explanationName.toLowerCase());
+                    if (foundFile) {
+                        explanationFiles.push(foundFile.toLowerCase());
+                    }
+                }
+            }
+            
+            // Исключаем manifest.txt и файлы объяснений из extra files
+            const excludedFiles = new Set([
+                'manifest.txt',
+                ...explanationFiles
+            ]);
+            
+            const extraFiles = archiveFiles.filter(file => {
+                const fileLower = file.toLowerCase();
+                // Исключаем файлы, которые есть в манифесте, файлы объяснений и manifest.txt
+                return !manifestFilenames.includes(fileLower) && !excludedFiles.has(fileLower);
+            });
+            
+            const missingFiles = manifestFilenames.filter(manifestFile => !archiveFiles.some(archiveFile => archiveFile.toLowerCase() === manifestFile.toLowerCase()));
+            
+            // Фильтруем items, исключая отсутствующие файлы из расчета прогресса
+            const existingItems = items.filter(item => 
+                archiveFiles.some(archiveFile => archiveFile.toLowerCase() === item.filename.toLowerCase())
+            );
+
             // Браузерный режим - обновляем DOM элементы
             const validationSection = document.getElementById('validation-section');
             const validationDetailsContainer = document.getElementById('validation-details-container');
@@ -528,15 +580,15 @@ export class ArchiveValidator {
             let personalCount = 0;
             let filesWithValidKeywords = 0;
             let memesCount = 0; // Подсчет мемов
-            let totalFiles = items.length;
+            let totalFiles = existingItems.length;
             let nonPdfFiles = 0; // Количество файлов, не являющихся PDF (для проверки тегов)
 
             // Обновляем прогресс - начало подсчета файлов (40-50%)
             this.updateValidationProgress(40, 'Анализ файлов...');
             await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
 
-            for (let index = 0; index < items.length; index++) {
-                const item = items[index];
+            for (let index = 0; index < existingItems.length; index++) {
+                const item = existingItems[index];
                 const itemType = item.type.toUpperCase();
                 const isPdf = item.filename.toLowerCase().endsWith('.pdf');
                 
@@ -610,9 +662,9 @@ export class ArchiveValidator {
                 }
 
                 // Обновляем прогресс каждые 10 файлов
-                if ((index + 1) % Math.max(1, Math.floor(items.length / 10)) === 0) {
-                    const progress = 40 + Math.round(((index + 1) / items.length) * 20); // 40-60% для подсчета файлов
-                    this.updateValidationProgress(progress, `Анализ файлов... (${index + 1}/${items.length})`);
+                if ((index + 1) % Math.max(1, Math.floor(existingItems.length / 10)) === 0) {
+                    const progress = 40 + Math.round(((index + 1) / existingItems.length) * 20); // 40-60% для подсчета файлов
+                    this.updateValidationProgress(progress, `Анализ файлов... (${index + 1}/${existingItems.length})`);
                     await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
                 }
             }
@@ -622,7 +674,7 @@ export class ArchiveValidator {
             await new Promise(resolve => setTimeout(resolve, 0)); // Даем DOM обновиться
 
             // Валидация файлов объяснений
-            const explanationResults = await this.explanationValidator.validateExplanationFiles(items);
+            const explanationResults = await this.explanationValidator.validateExplanationFiles(existingItems);
             const { validPersonalExplanations, validMemeExplanations } = explanationResults;
 
             // Обновляем прогресс - завершение проверки объяснений (65%)
@@ -677,53 +729,6 @@ export class ArchiveValidator {
             if (capsuleStatusElement) {
                 capsuleStatusElement.textContent = hasCapsuleDescription ? '✅' : '❌';
             }
-
-            // Получаем список всех файлов в архиве для проверки соответствия
-            const archiveFiles = await this.parent.archiveService.getFileList();
-            const manifestFilenames = items.map(item => item.filename.toLowerCase());
-            
-            // Идентифицируем файлы объяснений для MEM и ЛИЧНОЕ элементов
-            const explanationFiles = [];
-            const memAndPersonalItems = items.filter(item => 
-                item.type.toUpperCase() === 'МЕМ' || item.type.toUpperCase() === 'ЛИЧНОЕ'
-            );
-            
-            for (const item of memAndPersonalItems) {
-                const baseName = item.filename.replace(/\.[^/.]+$/, "").toLowerCase(); // Удаляем расширение
-                const possibleExplanationNames = [
-                    `${baseName}_объяснение.txt`,
-                    `${baseName}_explanation.txt`,
-                    `${baseName}_info.txt`,
-                    `${baseName}_description.txt`,
-                    `${baseName}_details.txt`,
-                    `${baseName}_объяснение.TXT`,
-                    `${baseName}_explanation.TXT`,
-                    `${baseName}_info.TXT`,
-                    `${baseName}_description.TXT`,
-                    `${baseName}_details.TXT`
-                ];
-                
-                for (const explanationName of possibleExplanationNames) {
-                    const foundFile = archiveFiles.find(file => file.toLowerCase() === explanationName.toLowerCase());
-                    if (foundFile) {
-                        explanationFiles.push(foundFile.toLowerCase());
-                    }
-                }
-            }
-            
-            // Исключаем manifest.txt и файлы объяснений из extra files
-            const excludedFiles = new Set([
-                'manifest.txt',
-                ...explanationFiles
-            ]);
-            
-            const extraFiles = archiveFiles.filter(file => {
-                const fileLower = file.toLowerCase();
-                // Исключаем файлы, которые есть в манифесте, файлы объяснений и manifest.txt
-                return !manifestFilenames.includes(fileLower) && !excludedFiles.has(fileLower);
-            });
-            
-            const missingFiles = manifestFilenames.filter(manifestFile => !archiveFiles.some(archiveFile => archiveFile.toLowerCase() === manifestFile.toLowerCase()));
 
             // Формирование списка файлов с индикацией тегов и слов в объяснениях
             if (validationFilesListElement) {
@@ -892,7 +897,7 @@ export class ArchiveValidator {
             // + количество личных достижений с валидными объяснениями + количество мемов с валидными объяснениями
             // + 1 (обязательный файл КАПСУЛА)
             // Когда все валидно: 5 + 2 + 5 + 12 + 2 + 5 + 1 = 27
-            let totalRequired = 5 + 2 + 5 + items.length + explanationResults.totalPersonalItems + explanationResults.totalMemeItems + 1; // базовые категории + файлы с валидными тегами + объяснения + КАПСУЛА
+            let totalRequired = 5 + 2 + 5 + existingItems.length + explanationResults.totalPersonalItems + explanationResults.totalMemeItems + 1; // базовые категории + файлы с валидными тегами + объяснения + КАПСУЛА
             let totalAchieved = Math.min(newsCount, 5) + Math.min(personalCount, 2) + Math.min(memesCount, 5) + filesWithValidKeywords + validPersonalExplanations + validMemeExplanations + (hasCapsuleDescription ? 1 : 0);
             const overallPercentage = totalRequired > 0 ? Math.round((totalAchieved / totalRequired) * 100) : 0;
 
