@@ -391,11 +391,11 @@ export class ArchiveRenderer {
                 const explanationPreviewId = `explanation-${index}`;
                 const explanationTitle = isMem ? 'мема' : 'личного достижения';
                 explanationHtml = `
-                    <details class="content-details explanation-details explanation-details-margin-top">
+                    <details class="spoiler-details spoiler-details--explanation">
                         <summary aria-label="Показать объяснение ${explanationTitle} ${this.parent.escapeHtml(displayTitle)}">
                             💡 Объяснение ${explanationTitle}
                         </summary>
-                        <div class="content-preview content-preview-margin-top" id="${explanationPreviewId}">
+                        <div class="content-preview" id="${explanationPreviewId}">
                             <div class="loading">Загрузка объяснения...</div>
                         </div>
                     </details>
@@ -434,11 +434,11 @@ export class ArchiveRenderer {
                         this.parent.urlManager.addUrl(url, 'pdf');
 
                         pdfContentHtml = `
-                            <details class="pdf-content-details">
-                                <summary class="pdf-content-summary" aria-label="Показать содержимое PDF файла ${this.parent.escapeHtml(displayTitle)}">
+                            <details class="spoiler-details">
+                                <summary aria-label="Показать содержимое PDF файла ${this.parent.escapeHtml(item.title)}">
                                     👁 Просмотр PDF
                                 </summary>
-                                <div class="pdf-content-content">
+                                <div class="content-preview">
                                     <iframe class="pdf-viewer" src="${url}"></iframe>
                                     <div class="pdf-download-section">
                                         <a href="${url}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
@@ -482,10 +482,8 @@ export class ArchiveRenderer {
                                 <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${authorHtml} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
-                            <div class="content-preview content-preview-margin-top" id="${previewId}">
-                                ${pdfMetadataHtml}
-                                ${pdfContentHtml}
-                            </div>
+                            ${pdfMetadataHtml}
+                            ${pdfContentHtml}
                             ${explanationHtml}
                         `;
                     } catch (error) {
@@ -525,7 +523,7 @@ export class ArchiveRenderer {
                                 <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${tagsHtml}</h3>
                             </div>
                             <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
-                            <details class="content-details">
+                            <details class="spoiler-details">
                                 <summary aria-label="Показать содержимое файла ${this.parent.escapeHtml(displayTitle)}">
                                     👁 Показать содержимое файла
                                 </summary>
@@ -655,16 +653,16 @@ export class ArchiveRenderer {
                         </div>
                         <h3 class="item-title">${this.parent.escapeHtml(displayTitle)} ${item.tags && item.tags.length > 0 ? item.tags.map(tag => `<span class="title-tags">${this.parent.escapeHtml(tag)}</span>`).join(' ') : ''}</h3>
                     </div>
-                    <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
-                    <details class="content-details">
-                        <summary aria-label="Показать содержимое файла ${this.parent.escapeHtml(displayTitle)}">
-                            👁 Показать содержимое файла
-                        </summary>
-                        <div class="content-preview content-preview-margin-top" id="${previewId}">
-                            ${contentHtml}
-                        </div>
-                    </details>
-                    ${explanationHtml}
+                            <div class="item-description">${this.parent.escapeHtml(displayDescription)}</div>
+                            <details class="spoiler-details">
+                                <summary aria-label="Показать содержимое файла ${this.parent.escapeHtml(displayTitle)}">
+                                    👁 Показать содержимое файла
+                                </summary>
+                                <div class="content-preview content-preview-margin-top" id="${previewId}">
+                                    ${contentHtml}
+                                </div>
+                            </details>
+                            ${explanationHtml}
                 `;
             }
 
@@ -878,93 +876,28 @@ export class ArchiveRenderer {
             const metadata = await ImageService.extractMetadata(uint8Array);
             const displayMetadata = ImageService.getDisplayMetadata(metadata);
             
-            // Формируем HTML для метаданных изображения (аналогично PDF)
-            let imageMetadataHtml = '';
-            if (metadata && metadata.hasMetadata) {
-                imageMetadataHtml = `
-                    <details class="image-metadata-details">
-                        <summary class="image-metadata-summary" aria-label="Показать метаданные изображения ${this.parent.escapeHtml(item.title)}">
-                            📸 Метаданные изображения
-                        </summary>
-                        <div class="image-metadata-content">
-                            <div class="metadata-grid">
-                `;
-
-                if (displayMetadata.title) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-main">Заголовок:</strong>
-                        <span>${this.parent.escapeHtml(displayMetadata.title)}</span>
-                    `;
-                }
-                if (displayMetadata.description) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-main">Описание:</strong>
-                        <span>${this.parent.escapeHtml(displayMetadata.description)}</span>
-                    `;
-                }
-                if (displayMetadata.author) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-main">Автор:</strong>
-                        <span>${this.parent.escapeHtml(displayMetadata.author)}</span>
-                    `;
-                }
-                if (displayMetadata.keywords && displayMetadata.keywords.length > 0) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-main">Ключевые слова:</strong>
-                        <span>${this.parent.escapeHtml(displayMetadata.keywords.join(', '))}</span>
-                    `;
-                }
-                if (displayMetadata.creationDate) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-secondary">Дата создания:</strong>
-                        <span class="metadata-field-secondary">${this.parent.escapeHtml(displayMetadata.creationDate)}</span>
-                    `;
-                }
-
-                // Добавляем GPS данные если есть
-                if (displayMetadata.gps) {
-                    imageMetadataHtml += `
-                        <strong class="metadata-field-secondary">Координаты:</strong>
-                        <span class="metadata-field-secondary">${this.parent.escapeHtml(displayMetadata.gps.latitude.toFixed(6))}, ${this.parent.escapeHtml(displayMetadata.gps.longitude.toFixed(6))}</span>
-                    `;
-                }
-
-                imageMetadataHtml += `
-                            </div>
-                        </div>
-                    </details>
-                `;
-            }
 
             // Создаем URL для изображения из uint8array
             const blob = new Blob([uint8Array], { type: `image/${item.filename.split('.').pop()}` });
             const imageUrl = URL.createObjectURL(blob);
             this.parent.urlManager.addUrl(imageUrl, 'image');
 
-            // Формируем HTML для отображения изображения и метаданных
+            // Формируем HTML для отображения изображения (без вложенного спойлера)
             const imageContentHtml = `
-                <details class="image-content-details">
-                    <summary class="image-content-summary" aria-label="Показать содержимое изображения ${this.parent.escapeHtml(item.title)}">
-                        👁 Просмотр изображения
-                    </summary>
-                    <div class="image-content-content">
-                        <img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy" class="image-full-width">
-                        <div class="image-download-section">
-                            <a href="${this.parent.escapeHtml(imageUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
-                                📥 Скачать изображение
-                            </a>
-                        </div>
-                    </div>
-                </details>
+                <img src="${this.parent.escapeHtml(imageUrl)}" alt="${this.parent.escapeHtml(item.title)}" loading="lazy" class="image-full-width">
+                <div class="image-download-section" style="margin-top: 10px;">
+                    <a href="${this.parent.escapeHtml(imageUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">
+                        📥 Скачать изображение
+                    </a>
+                </div>
             `;
 
             previewDiv.innerHTML = `
-                ${imageMetadataHtml}
                 ${imageContentHtml}
             `;
-            this.logger.debug('Изображение с метаданными обработано успешно', { filename: item.filename, hasMetadata: !!metadata?.hasMetadata, operationId });
+            this.logger.debug('Изображение обработано успешно', { filename: item.filename, hasMetadata: !!metadata?.hasMetadata, operationId });
         } catch (e) {
-            this.logger.debug('Ошибка при обработке изображения с метаданными, пробуем резервный метод', { error: e.message, operationId });
+            this.logger.debug('Ошибка при обработке изображения, пробуем резервный метод', { error: e.message, operationId });
             try {
                 // Резервный метод для больших файлов
                 const imageBlob = await file.async('blob');
@@ -1214,11 +1147,11 @@ export class ArchiveRenderer {
             
             // Создаем отдельный спойлер для PDF содержимого
             const pdfContentHtml = `
-                <details class="pdf-content-details">
+                <details class="spoiler-details spoiler-details--pdf-content">
                     <summary class="pdf-content-summary" aria-label="Показать содержимое PDF файла ${this.parent.escapeHtml(item.title)}">
                         👁 Просмотр PDF
                     </summary>
-                    <div class="pdf-content-content">
+                    <div class="content-preview">
                         <iframe class="pdf-viewer" src="${this.parent.escapeHtml(dataUrl)}"></iframe>
                         <div class="pdf-download-section">
                             <a href="${this.parent.escapeHtml(dataUrl)}" download="${this.parent.escapeHtml(item.filename)}" class="download-link">

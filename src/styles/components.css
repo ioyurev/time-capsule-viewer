@@ -771,16 +771,17 @@
     background: var(--progress-danger);
 }
 
-/* Стили для контента архива */
-.content-details {
-    margin-top: 1.5rem;
+/* Unified spoiler/details component styles */
+.spoiler-details {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
     border: 1px solid var(--border-secondary);
     border-radius: var(--border-radius-sm);
     width: 100%;
     display: block;
 }
 
-.content-details summary {
+.spoiler-details summary {
     cursor: pointer;
     padding: 1rem;
     background: var(--bg-secondary);
@@ -792,17 +793,17 @@
     transition: background-color var(--transition-normal);
 }
 
-.content-details summary:hover {
+.spoiler-details summary:hover {
     background: var(--bg-tertiary);
 }
 
-.content-details[open] summary {
+.spoiler-details[open] summary {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
 
 .content-preview {
-    padding: 1.5rem;
+    padding: 1rem;
     background: var(--bg-card);
     border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
 }
@@ -847,80 +848,8 @@ audio {
     border-radius: var(--border-radius-xs);
 }
 
-/* Стили для метаданных PDF */
-.pdf-metadata-details {
-    margin-bottom: 15px;
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--border-radius-sm);
-    display: block;
-}
-
-.pdf-metadata-summary {
-    cursor: pointer;
-    padding: 10px;
-    background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
-    border: none;
-    outline: none;
-    font-weight: bold;
-    margin: 0;
-    transition: background-color var(--transition-normal);
-}
-
-.pdf-metadata-summary:hover {
-    background: var(--bg-tertiary);
-}
-
-.pdf-metadata-details[open] .pdf-metadata-summary {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.pdf-metadata-content {
-    padding: 15px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-secondary);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
-    margin-top: 5px;
-}
-
-/* Стили для содержимого PDF */
-.pdf-content-details {
-    margin-bottom: 15px;
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--border-radius-sm);
-    display: block;
-}
-
-.pdf-content-summary {
-    cursor: pointer;
-    padding: 10px;
-    background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
-    border: none;
-    outline: none;
-    font-weight: bold;
-    margin: 0;
-    transition: background-color var(--transition-normal);
-}
-
-.pdf-content-summary:hover {
-    background: var(--bg-tertiary);
-}
-
-.pdf-content-details[open] .pdf-content-summary {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.pdf-content-content {
-    padding: 15px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-secondary);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
-    margin-top: 5px;
+.pdf-download-section {
+    margin-top: 1rem;
 }
 
 /* Стили для сетки метаданных */
@@ -945,69 +874,6 @@ audio {
     margin-top: 10px;
     font-size: 0.9em;
     color: var(--text-tertiary);
-}
-
-.pdf-download-section {
-    margin-top: 10px;
-}
-
-/* Стили для спойлера с объяснением */
-.explanation-details {
-    margin-top: 15px;
-    border: 1px solid var(--border-secondary);
-    border-radius: var(--border-radius-sm);
-    display: block;
-}
-
-.explanation-details summary {
-    cursor: pointer;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border-radius: var(--border-radius-sm);
-    border: none;
-    outline: none;
-    font-weight: bold;
-    margin: 0;
-    transition: background-color var(--transition-normal);
-}
-
-.explanation-details summary:hover {
-    background: var(--bg-tertiary);
-}
-
-.explanation-details[open] summary {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.explanation-details[open] summary::after {
-    content: "▲";
-    float: right;
-    transition: transform var(--transition-normal);
-}
-
-.explanation-details:not([open]) summary::after {
-    content: "▼";
-    float: right;
-    transition: transform var(--transition-normal);
-}
-
-.explanation-text {
-    margin: 0;
-    padding: 1.5rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border-secondary);
-    border-top: none;
-    border-radius: 0 var(--border-radius-sm) var(--border-radius-sm);
-    margin-top: 5px;
-    white-space: pre-wrap;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--text-primary);
-    overflow-x: auto;
-    max-height: 400px;
-    overflow-y: auto;
 }
 
 
@@ -1080,10 +946,6 @@ body[data-theme="dark"] .archive-item-highlight {
     margin-top: 10px;
 }
 
-.explanation-details-margin-top {
-    margin-top: 15px;
-}
-
 .pdf-viewer-full-width {
     width: 100%;
     max-width: 800px;
@@ -1141,7 +1003,7 @@ body[data-theme="dark"] .archive-item-highlight {
 }
 
 .data-table {
-    width: 100%;
+    width: 10%;
     border-collapse: collapse;
     margin: 10px 0;
 }
@@ -1291,30 +1153,6 @@ body[data-theme="dark"] .archive-item-highlight {
     background: var(--bg-secondary);
     padding: 0.25rem 0.5rem;
     border-radius: 12px;
-}
-
-.content-details {
-    margin-top: 10px;
-}
-
-.content-preview {
-    margin-top: 10px;
-}
-
-.pdf-metadata-details {
-    margin-bottom: 10px;
-}
-
-.pdf-content-details {
-    margin-top: 10px;
-}
-
-.image-metadata-details {
-    margin-bottom: 10px;
-}
-
-.image-content-details {
-    margin-top: 10px;
 }
 
 .metadata-grid {
